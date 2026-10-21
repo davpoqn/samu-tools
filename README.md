@@ -1,9 +1,11 @@
 # 사무툴 (Samu Tools)
 
+**https://davpoqn.github.io/samu-tools/**
+
 자주 쓰는 사무 작업을 브라우저에서 바로 처리하는 단일 HTML 도구 모음입니다.
 설치도, 서버도, 계정도 필요 없습니다. **파일은 PC(브라우저) 밖으로 나가지 않습니다.**
 
-https://<username>.github.io/<repo>/
+https://davpoqn.github.io/samu-tools/
 
 ## 들어 있는 도구
 
