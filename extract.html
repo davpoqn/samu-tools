@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>파일 형식 추출기</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#151b23; --panel2:#1b2430; --line:#28313d;
+    --tx:#e6edf3; --tx2:#9aa7b4; --tx3:#68737f;
+    --accent:#4c8dff; --accent-d:#2f6fe0; --ok:#3fb950; --warn:#d29922; --err:#f85149;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:radial-gradient(1200px 600px at 15% -10%, #17202b 0%, var(--bg) 55%) no-repeat, var(--bg);
+    color:var(--tx); font:14px/1.6 "Segoe UI","Malgun Gothic",system-ui,-apple-system,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1040px; margin:0 auto; padding:34px 22px 70px}
+
+  header{display:flex; align-items:center; gap:14px; margin-bottom:26px}
+  .logo{
+    width:44px;height:44px;flex:0 0 44px;border-radius:12px;
+    background:linear-gradient(145deg,#4c8dff,#2f6fe0);
+    display:flex;align-items:center;justify-content:center;
+    font-weight:700;font-size:15px;letter-spacing:.5px;color:#fff;
+    box-shadow:0 6px 18px rgba(47,111,224,.35);
+  }
+  h1{margin:0;font-size:19px;font-weight:650;letter-spacing:-.2px}
+  .sub{margin:3px 0 0;color:var(--tx2);font-size:12.5px}
+
+  .panel{
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:18px 18px 20px; margin-bottom:14px;
+  }
+  .step{
+    display:flex;align-items:center;gap:9px;font-size:12px;font-weight:700;
+    letter-spacing:.4px;color:var(--tx2);text-transform:uppercase;margin-bottom:14px;
+  }
+  .step i{
+    width:19px;height:19px;border-radius:6px;background:var(--panel2);border:1px solid var(--line);
+    display:inline-flex;align-items:center;justify-content:center;font-style:normal;
+    font-size:11px;color:var(--tx);font-weight:700;
+  }
+
+  /* drop */
+  .drop{
+    border:1.5px dashed #33404f; border-radius:12px; background:rgba(28,36,47,.45);
+    padding:26px 18px; text-align:center; transition:.16s;
+  }
+  .drop.over{border-color:var(--accent); background:rgba(76,141,255,.08)}
+  .drop strong{display:block;font-size:14.5px;font-weight:650}
+  .drop span{display:block;color:var(--tx2);font-size:12.5px;margin-top:5px}
+  .row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:16px}
+
+  .btn{
+    appearance:none;border:1px solid var(--line);background:var(--panel2);color:var(--tx);
+    padding:8px 15px;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;
+    font-family:inherit; transition:.14s;
+  }
+  .btn:hover{background:#232e3b;border-color:#39485a}
+  .btn:active{transform:translateY(1px)}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.primary:hover{background:var(--accent-d);border-color:var(--accent-d)}
+  .btn.ghost{background:transparent;color:var(--tx2)}
+  .btn.ghost:hover{color:var(--tx)}
+  .btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+  .btn.big{padding:11px 20px;font-size:13.5px}
+
+  .srcinfo{margin-top:12px;font-size:12.5px;color:var(--tx2);display:none}
+  .srcinfo.on{display:block}
+  .srcinfo b{color:var(--tx);font-weight:650}
+  .tag{
+    display:inline-block;background:var(--panel2);border:1px solid var(--line);border-radius:7px;
+    padding:2px 8px;margin:0 5px 5px 0;font-size:12px;color:var(--tx2);max-width:100%;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom;
+  }
+
+  /* ext chips */
+  .empty{color:var(--tx3);font-size:13px;padding:10px 2px;grid-column:1/-1}
+  .chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:9px}
+  .chip{
+    display:flex;flex-direction:column;gap:2px;align-items:flex-start;
+    background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+    padding:9px 11px;cursor:pointer;user-select:none;transition:.13s;position:relative;
+  }
+  .chip:hover{border-color:#3c4b5d}
+  .chip .ex{font-size:13.5px;font-weight:700;letter-spacing:.2px;display:flex;align-items:center;gap:6px}
+  .chip .ex .dot{
+    width:13px;height:13px;border-radius:4px;border:1.5px solid #46566a;background:transparent;
+    display:inline-block;flex:0 0 13px;position:relative;transition:.13s;
+  }
+  .chip .meta{font-size:11.5px;color:var(--tx2);padding-left:19px}
+  .chip.on{border-color:var(--accent);background:rgba(76,141,255,.11)}
+  .chip.on .ex .dot{background:var(--accent);border-color:var(--accent)}
+  .chip.on .ex .dot::after{
+    content:"";position:absolute;left:3.5px;top:1px;width:4px;height:7px;
+    border-right:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(40deg);
+  }
+  .toolbar{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-bottom:13px}
+  .toolbar .sp{flex:1}
+  .mini{
+    background:transparent;border:1px solid var(--line);color:var(--tx2);border-radius:7px;
+    padding:4px 10px;font-size:12px;cursor:pointer;font-family:inherit;font-weight:600;
+  }
+  .mini:hover{color:var(--tx);border-color:#39485a}
+
+  /* options */
+  .opt{display:flex;align-items:flex-start;gap:9px;padding:7px 0;cursor:pointer}
+  .opt input{margin:3px 0 0;accent-color:var(--accent);width:15px;height:15px;cursor:pointer}
+  .opt .t{font-size:13px}
+  .opt .d{display:block;color:var(--tx3);font-size:11.5px;margin-top:1px}
+  .opt.dim{opacity:.45}
+
+  /* result */
+  .summary{
+    display:flex;gap:18px;flex-wrap:wrap;align-items:baseline;
+    padding:11px 13px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+    font-size:12.5px;color:var(--tx2);margin-bottom:13px;
+  }
+  .summary b{color:var(--tx);font-size:15px;font-weight:700;margin-right:3px}
+
+  .bar{height:6px;background:#202a36;border-radius:99px;overflow:hidden;margin-top:10px;display:none}
+  .bar.on{display:block}
+  .bar > div{height:100%;width:0;background:linear-gradient(90deg,#4c8dff,#6fa6ff);transition:width .1s}
+
+  .log{
+    margin-top:14px;background:#0b0f14;border:1px solid var(--line);border-radius:10px;
+    padding:10px 12px;font:12px/1.65 "Cascadia Mono",Consolas,monospace;color:var(--tx2);
+    max-height:210px;overflow:auto;display:none;
+  }
+  .log.on{display:block}
+  .log .ok{color:var(--ok)} .log .err{color:var(--err)} .log .warn{color:var(--warn)}
+  .log .dim{color:var(--tx3)}
+
+  .foot{margin-top:22px;color:var(--tx3);font-size:11.5px;text-align:center;line-height:1.8}
+  .kbd{
+    background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font:11px/1.5 "Cascadia Mono",Consolas,monospace;color:var(--tx2);
+  }
+  .hint{font-size:12px;color:var(--warn);margin-top:10px;display:none}
+  .hint.on{display:block}
+</style>
+</head>
+<body>
+<style>
+  .topnav{
+    display:flex;align-items:center;gap:3px;height:36px;padding:0 14px;
+    background:#0b1017;border-bottom:1px solid #28313d;
+    font:600 12px/1 "Segoe UI","Malgun Gothic",system-ui,sans-serif;
+    position:relative;z-index:50;flex:0 0 auto;
+  }
+  .topnav a{color:#9aa7b4;text-decoration:none;padding:6px 11px;border-radius:6px;transition:.13s}
+  .topnav a:hover{background:#1b2430;color:#e6edf3}
+  .topnav a.on{background:rgba(76,141,255,.15);color:#4c8dff}
+  .topnav .tn-home{color:#68737f;font-weight:700}
+  .topnav .tn-home:hover{color:#e6edf3}
+  .topnav .tn-sep{width:1px;height:14px;background:#28313d;margin:0 7px}
+  .topnav .tn-sp{flex:1}
+  .topnav .tn-name{color:#4b5561;font-weight:600;font-size:11.5px}
+</style><nav class="topnav"><a class="tn-home" href="index.html">사무툴</a><span class="tn-sep"></span><a href="extract.html" class="on">형식 추출</a><a href="rename.html">이름 정리</a><a href="excel.html">엑셀 진단</a></nav>
+<div class="wrap">
+
+  <header>
+    <div class="logo">FX</div>
+    <div>
+      <h1>파일 형식 추출기</h1>
+      <p class="sub">폴더나 ZIP을 넣으면 파일 종류별로 세어 보여줍니다. 원하는 형식만 골라 한 폴더로 모으세요. 모든 처리는 이 PC 안에서만 이루어집니다.</p>
+    </div>
+  </header>
+
+  <section class="panel">
+    <div class="step"><i>1</i>소스 넣기</div>
+    <div class="drop" id="drop">
+      <strong>폴더 또는 ZIP 파일을 여기로 끌어다 놓으세요</strong>
+      <span>여러 개 동시에 가능 · 하위 폴더까지 자동으로 훑습니다</span>
+      <div class="row">
+        <button class="btn primary" id="btnDir">폴더 선택</button>
+        <button class="btn" id="btnZip">ZIP 선택</button>
+        <button class="btn ghost" id="btnClear">비우기</button>
+      </div>
+      <input type="file" id="zipInput" accept=".zip,application/zip" multiple hidden />
+    </div>
+    <div class="srcinfo" id="srcInfo"></div>
+  </section>
+
+  <section class="panel">
+    <div class="step"><i>2</i>파일 형식 고르기</div>
+    <div class="toolbar">
+      <button class="mini" data-preset="pdf">PDF만</button>
+      <button class="mini" data-preset="img">이미지</button>
+      <button class="mini" data-preset="doc">문서·오피스</button>
+      <button class="mini" data-preset="all">전체</button>
+      <button class="mini" data-preset="none">해제</button>
+      <span class="sp"></span>
+      <span style="font-size:11.5px;color:var(--tx3)">형식을 클릭해 선택/해제</span>
+    </div>
+    <div id="chips" class="chips"><div class="empty">아직 소스가 없습니다. 위에서 폴더나 ZIP을 넣어주세요.</div></div>
+  </section>
+
+  <section class="panel">
+    <div class="step"><i>3</i>옵션</div>
+    <label class="opt" id="optPrefixWrap">
+      <input type="checkbox" id="optPrefix" checked />
+      <span class="t">파일명 앞에 원본 폴더명 붙이기
+        <span class="d">예: <code>35. OH_GEUNYOUNG__영수증1.pdf</code> — 한 폴더에 평평하게 모아도 누구 건지 구분됩니다.</span>
+      </span>
+    </label>
+    <label class="opt">
+      <input type="checkbox" id="optTree" />
+      <span class="t">하위 폴더 구조 유지
+        <span class="d">체크하면 평평하게 모으지 않고 원래 폴더 구조 그대로 복사합니다. (위 옵션은 자동 해제)</span>
+      </span>
+    </label>
+  </section>
+
+  <section class="panel">
+    <div class="step"><i>4</i>뽑아내기</div>
+    <div class="summary">
+      <span><b id="mCount">0</b>개 파일 선택됨</span>
+      <span>용량 <b id="mSize" style="font-size:13px">0 B</b></span>
+      <span style="color:var(--tx3)" id="mNote"></span>
+    </div>
+    <div class="row" style="justify-content:flex-start;margin-top:0">
+      <button class="btn primary big" id="btnCopy">선택한 파일 새 폴더로 복사</button>
+      <button class="btn big" id="btnDownload">ZIP으로 다운로드</button>
+    </div>
+    <div class="bar" id="bar"><div id="barFill"></div></div>
+    <div class="hint" id="hint"></div>
+    <div class="log" id="log"></div>
+  </section>
+
+  <div class="foot">
+    Chrome 또는 Edge에서 여세요 · 파일은 서버로 전송되지 않습니다<br />
+    <span class="kbd">Ctrl</span> + <span class="kbd">O</span> 로 이 파일을 다시 열 수 있습니다
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ────────────────────────── 상태 ────────────────────────── */
+const state = {
+  files: [],          // {path, name, ext, size, getBlob}
+  sources: [],        // {label, count}
+  exts: new Map(),    // ext -> {count, size}
+  selected: new Set(),
+  busy: false,
+};
+
+const IMG = ['jpg','jpeg','png','gif','bmp','webp','heic','heif','tif','tiff','svg','avif'];
+const OFFICE = ['pdf','doc','docx','xls','xlsx','ppt','pptx','csv','txt','md','rtf','hwp','hwpx','odt','ods'];
+
+const $ = (s) => document.querySelector(s);
+
+/* ────────────────────────── 유틸 ────────────────────────── */
+function extOf(name){
+  const i = name.lastIndexOf('.');
+  if (i <= 0 || i === name.length - 1) return '(없음)';
+  const e = name.slice(i + 1).toLowerCase();
+  return /^[a-z0-9]{1,8}$/.test(e) ? e : '(없음)';
+}
+function fmtSize(n){
+  if (n < 1024) return n + ' B';
+  const u = ['KB','MB','GB','TB'];
+  let i = -1;
+  do { n /= 1024; i++; } while (n >= 1024 && i < u.length - 1);
+  return (n >= 100 ? n.toFixed(0) : n.toFixed(1)) + ' ' + u[i];
+}
+function baseName(p){ const a = p.split('/'); return a[a.length - 1]; }
+function dirName(p){ const a = p.split('/'); a.pop(); return a.join('/'); }
+function cleanSeg(s){
+  return s.replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, ' ').trim();
+}
+function log(msg, cls){
+  const el = $('#log');
+  el.classList.add('on');
+  const line = document.createElement('div');
+  if (cls) line.className = cls;
+  line.textContent = msg;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+function setHint(msg){
+  const h = $('#hint');
+  if (!msg){ h.classList.remove('on'); h.textContent = ''; return; }
+  h.classList.add('on'); h.textContent = msg;
+}
+function setBusy(on){
+  state.busy = on;
+  ['#btnCopy','#btnDownload','#btnDir','#btnZip','#btnClear'].forEach(s => {
+    const b = $(s); if (b) b.disabled = on;
+  });
+}
+
+/* ────────────────────────── 소스 수집 ────────────────────────── */
+function addFiles(list, label){
+  if (!list.length) return;
+  for (const f of list){
+    f.ext = extOf(f.name);
+    state.files.push(f);
+  }
+  state.sources.push({ label, count: list.length });
+  recompute();
+}
+
+async function walkEntry(entry, prefix, out){
+  if (entry.isFile){
+    const file = await new Promise((res, rej) => entry.file(res, rej));
+    out.push({ path: prefix + file.name, name: file.name, size: file.size, getBlob: () => Promise.resolve(file) });
+    return;
+  }
+  if (entry.isDirectory){
+    const reader = entry.createReader();
+    const dirPath = prefix + entry.name + '/';
+    for (;;){
+      const batch = await new Promise((res, rej) => reader.readEntries(res, rej));
+      if (!batch.length) break;
+      for (const e of batch) await walkEntry(e, dirPath, out);
+    }
+  }
+}
+
+async function walkHandle(dirHandle, prefix, out){
+  for await (const [name, handle] of dirHandle.entries()){
+    if (handle.kind === 'file'){
+      const f = await handle.getFile();
+      out.push({ path: prefix + name, name: name, size: f.size, getBlob: () => handle.getFile() });
+    } else {
+      await walkHandle(handle, prefix + name + '/', out);
+    }
+  }
+}
+
+/* ────────────────────────── ZIP 읽기 (의존성 없음) ────────────────────────── */
+function decodeName(bytes, flags){
+  if (flags & 0x800) return new TextDecoder('utf-8').decode(bytes).normalize('NFC');
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(bytes).normalize('NFC'); }
+  catch { /* UTF-8 아님 */ }
+  try { return new TextDecoder('euc-kr').decode(bytes).normalize('NFC'); }
+  catch { return new TextDecoder('utf-8').decode(bytes).normalize('NFC'); }
+}
+
+async function readZip(file){
+  const buf = new Uint8Array(await file.arrayBuffer());
+  const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+
+  let eocd = -1;
+  const stop = Math.max(0, buf.length - 22 - 65535);
+  for (let i = buf.length - 22; i >= stop; i--){
+    if (buf[i] === 0x50 && buf[i+1] === 0x4b && buf[i+2] === 0x05 && buf[i+3] === 0x06){ eocd = i; break; }
+  }
+  if (eocd < 0) throw new Error('ZIP 구조를 찾지 못했습니다: ' + file.name);
+
+  const count = dv.getUint16(eocd + 10, true);
+  const cdOff = dv.getUint32(eocd + 16, true);
+  const out = [];
+  let p = cdOff;
+
+  for (let n = 0; n < count; n++){
+    if (p + 46 > buf.length || dv.getUint32(p, true) !== 0x02014b50) break;
+    const flags = dv.getUint16(p + 8, true);
+    const method = dv.getUint16(p + 10, true);
+    const csize = dv.getUint32(p + 20, true);
+    const usize = dv.getUint32(p + 24, true);
+    const nameLen = dv.getUint16(p + 28, true);
+    const extraLen = dv.getUint16(p + 30, true);
+    const cmtLen = dv.getUint16(p + 32, true);
+    const lho = dv.getUint32(p + 42, true);
+    const name = decodeName(buf.subarray(p + 46, p + 46 + nameLen), flags);
+    p += 46 + nameLen + extraLen + cmtLen;
+
+    if (name.endsWith('/')) continue;                       // 폴더 엔트리
+    if (/(^|\/)__MACOSX\//.test(name)) continue;            // macOS 쓰레기
+    if (/(^|\/)\.DS_Store$/.test(name)) continue;
+
+    const lNameLen = dv.getUint16(lho + 26, true);
+    const lExtraLen = dv.getUint16(lho + 28, true);
+    const start = lho + 30 + lNameLen + lExtraLen;
+    const end = Math.min(start + csize, buf.length);
+
+    out.push({
+      path: name,
+      name: baseName(name),
+      size: usize || csize,
+      getBlob: async () => {
+        const slice = buf.subarray(start, end);
+        if (method === 0) return new Blob([slice]);
+        if (method === 8){
+          if (typeof DecompressionStream !== 'function') throw new Error('이 브라우저는 ZIP 압축 해제를 지원하지 않습니다. Chrome/Edge 최신 버전을 사용하세요.');
+          const st = new Blob([slice]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+          return await new Response(st).blob();
+        }
+        throw new Error('지원하지 않는 압축 방식(' + method + '): ' + name);
+      },
+    });
+  }
+  return out;
+}
+
+/* ────────────────────────── 집계 & 렌더 ────────────────────────── */
+function recompute(){
+  const map = new Map();
+  for (const f of state.files){
+    let o = map.get(f.ext);
+    if (!o){ o = { count: 0, size: 0 }; map.set(f.ext, o); }
+    o.count++; o.size += f.size;
+  }
+  state.exts = map;
+  for (const k of [...state.selected]) if (!map.has(k)) state.selected.delete(k);
+  renderSources();
+  renderChips();
+  renderSummary();
+}
+
+function renderSources(){
+  const el = $('#srcInfo');
+  if (!state.sources.length){ el.classList.remove('on'); el.innerHTML = ''; return; }
+  el.classList.add('on');
+  const total = state.files.reduce((a, f) => a + f.size, 0);
+  const tags = state.sources.map(s => '<span class="tag">' + escapeHtml(s.label) + ' · ' + s.count + '개</span>').join('');
+  el.innerHTML = '<b>소스 ' + state.sources.length + '개</b> · 파일 <b>' + state.files.length + '개</b> · ' + fmtSize(total) + '<div style="margin-top:7px">' + tags + '</div>';
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+function renderChips(){
+  const box = $('#chips');
+  if (!state.exts.size){
+    box.innerHTML = '<div class="empty">아직 소스가 없습니다. 위에서 폴더나 ZIP을 넣어주세요.</div>';
+    return;
+  }
+  const rows = [...state.exts.entries()].sort((a, b) => b[1].count - a[1].count || a[0].localeCompare(b[0]));
+  box.innerHTML = rows.map(([ext, o]) => {
+    const on = state.selected.has(ext) ? ' on' : '';
+    return '<div class="chip' + on + '" data-ext="' + escapeHtml(ext) + '">' +
+             '<span class="ex"><span class="dot"></span>' + escapeHtml(ext.toUpperCase()) + '</span>' +
+             '<span class="meta">' + o.count + '개 · ' + fmtSize(o.size) + '</span>' +
+           '</div>';
+  }).join('');
+  box.querySelectorAll('.chip').forEach(c => {
+    c.addEventListener('click', () => {
+      const e = c.dataset.ext;
+      if (state.selected.has(e)) state.selected.delete(e); else state.selected.add(e);
+      renderChips(); renderSummary();
+    });
+  });
+}
+
+function matched(){
+  return state.files.filter(f => state.selected.has(f.ext));
+}
+
+function renderSummary(){
+  const m = matched();
+  const size = m.reduce((a, f) => a + f.size, 0);
+  $('#mCount').textContent = m.length;
+  $('#mSize').textContent = fmtSize(size);
+  $('#mNote').textContent = state.selected.size
+    ? '형식: ' + [...state.selected].sort().join(', ')
+    : (state.exts.size ? '형식을 하나 이상 선택하세요' : '');
+}
+
+/* ────────────────────────── 내보내기 이름 규칙 ────────────────────────── */
+function buildName(f, prefixFolder){
+  let name = f.name;
+  if (prefixFolder){
+    const d = dirName(f.path).split('/').filter(Boolean);
+    if (d.length){
+      const folder = cleanSeg(d[d.length - 1]);
+      if (folder) name = folder + '__' + name;
+    }
+  }
+  return cleanSeg(name);
+}
+
+function uniqueName(used, key, name){
+  let candidate = name;
+  if (!used.has(key + '\u0000' + candidate)){
+    used.add(key + '\u0000' + candidate);
+    return candidate;
+  }
+  const i = name.lastIndexOf('.');
+  const stem = i > 0 ? name.slice(0, i) : name;
+  const ext = i > 0 ? name.slice(i) : '';
+  let n = 2;
+  for (;;){
+    candidate = stem + ' (' + n + ')' + ext;
+    if (!used.has(key + '\u0000' + candidate)){ used.add(key + '\u0000' + candidate); return candidate; }
+    n++;
+  }
+}
+
+/* ────────────────────────── 폴더로 복사 ────────────────────────── */
+async function doCopy(){
+  if (state.busy) return;
+  const m = matched();
+  if (!m.length){ setHint('먼저 2단계에서 파일 형식을 선택하세요.'); return; }
+  if (typeof window.showDirectoryPicker !== 'function'){
+    setHint('이 브라우저에서는 폴더 직접 저장이 지원되지 않습니다. "ZIP으로 다운로드"를 사용하거나 Chrome/Edge에서 열어주세요.');
+    return;
+  }
+  setHint('');
+
+  let outRoot;
+  try {
+    outRoot = await window.showDirectoryPicker({ mode: 'readwrite', id: 'fxOut', startIn: 'downloads' });
+  } catch (e){
+    if (e && e.name === 'AbortError') return;
+    setHint('저장 폴더를 열지 못했습니다: ' + (e && e.message ? e.message : e));
+    return;
+  }
+
+  const keepTree = $('#optTree').checked;
+  const prefixFolder = !keepTree && $('#optPrefix').checked;
+
+  setBusy(true);
+  $('#bar').classList.add('on');
+  $('#barFill').style.width = '0%';
+  log('복사 시작 → 대상 폴더: ' + outRoot.name, 'dim');
+
+  const dirCache = new Map();
+  async function getDir(sub){
+    if (!sub) return outRoot;
+    if (dirCache.has(sub)) return dirCache.get(sub);
+    let cur = outRoot;
+    for (const part of sub.split('/').filter(Boolean)){
+      cur = await cur.getDirectoryHandle(cleanSeg(part), { create: true });
+    }
+    dirCache.set(sub, cur);
+    return cur;
+  }
+
+  const used = new Set();
+  let done = 0, bytes = 0, failed = 0;
+
+  for (const f of m){
+    try {
+      const sub = keepTree ? dirName(f.path) : '';
+      const dir = await getDir(sub);
+      const name = uniqueName(used, sub, keepTree ? cleanSeg(f.name) : buildName(f, prefixFolder));
+      const blob = await f.getBlob();
+      const fh = await dir.getFileHandle(name, { create: true });
+      const w = await fh.createWritable();
+      await w.write(blob);
+      await w.close();
+      done++; bytes += blob.size;
+    } catch (e){
+      failed++;
+      log('실패: ' + f.path + ' — ' + (e && e.message ? e.message : e), 'err');
+    }
+    const pct = Math.round((done + failed) / m.length * 100);
+    $('#barFill').style.width = pct + '%';
+    if ((done + failed) % 5 === 0 || done + failed === m.length){
+      log('진행 ' + (done + failed) + '/' + m.length + ' · ' + fmtSize(bytes));
+    }
+  }
+
+  log('완료: ' + done + '개 파일 · ' + fmtSize(bytes) + (failed ? ' (실패 ' + failed + '개)' : ''), failed ? 'warn' : 'ok');
+  setBusy(false);
+  setHint('"' + outRoot.name + '" 폴더에 ' + done + '개 파일을 저장했습니다.');
+}
+
+/* ────────────────────────── ZIP 쓰기 (store) ────────────────────────── */
+let CRC_TABLE = null;
+function crcTable(){
+  if (CRC_TABLE) return CRC_TABLE;
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++){
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  CRC_TABLE = t;
+  return t;
+}
+function crc32(u8){
+  const t = crcTable();
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < u8.length; i++) c = t[(c ^ u8[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+async function makeZip(entries){
+  const enc = new TextEncoder();
+  const parts = [];
+  const central = [];
+  let offset = 0;
+  const now = new Date();
+  const dosTime = ((now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1)) & 0xFFFF;
+  const dosDate = (((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate()) & 0xFFFF;
+
+  for (const e of entries){
+    const data = new Uint8Array(await e.blob.arrayBuffer());
+    const nb = enc.encode(e.name);
+    const crc = crc32(data);
+
+    const lh = new Uint8Array(30 + nb.length);
+    const lv = new DataView(lh.buffer);
+    lv.setUint32(0, 0x04034b50, true);
+    lv.setUint16(4, 20, true);
+    lv.setUint16(6, 0x0800, true);      // UTF-8 파일명
+    lv.setUint16(8, 0, true);           // store
+    lv.setUint16(10, dosTime, true);
+    lv.setUint16(12, dosDate, true);
+    lv.setUint32(14, crc, true);
+    lv.setUint32(18, data.length, true);
+    lv.setUint32(22, data.length, true);
+    lv.setUint16(26, nb.length, true);
+    lv.setUint16(28, 0, true);
+    lh.set(nb, 30);
+
+    parts.push(lh, data);
+
+    const ch = new Uint8Array(46 + nb.length);
+    const cv = new DataView(ch.buffer);
+    cv.setUint32(0, 0x02014b50, true);
+    cv.setUint16(4, 20, true);
+    cv.setUint16(6, 20, true);
+    cv.setUint16(8, 0x0800, true);
+    cv.setUint16(10, 0, true);
+    cv.setUint16(12, dosTime, true);
+    cv.setUint16(14, dosDate, true);
+    cv.setUint32(16, crc, true);
+    cv.setUint32(20, data.length, true);
+    cv.setUint32(24, data.length, true);
+    cv.setUint16(28, nb.length, true);
+    cv.setUint16(30, 0, true);
+    cv.setUint16(32, 0, true);
+    cv.setUint16(34, 0, true);
+    cv.setUint16(36, 0, true);
+    cv.setUint32(38, 0, true);
+    cv.setUint32(42, offset, true);
+    ch.set(nb, 46);
+    central.push(ch);
+
+    offset += lh.length + data.length;
+  }
+
+  const cdSize = central.reduce((a, c) => a + c.length, 0);
+  const eocd = new Uint8Array(22);
+  const ev = new DataView(eocd.buffer);
+  ev.setUint32(0, 0x06054b50, true);
+  ev.setUint16(4, 0, true);
+  ev.setUint16(6, 0, true);
+  ev.setUint16(8, central.length, true);
+  ev.setUint16(10, central.length, true);
+  ev.setUint32(12, cdSize, true);
+  ev.setUint32(16, offset, true);
+  ev.setUint16(20, 0, true);
+
+  return new Blob([...parts, ...central, eocd], { type: 'application/zip' });
+}
+
+async function doDownload(){
+  if (state.busy) return;
+  const m = matched();
+  if (!m.length){ setHint('먼저 2단계에서 파일 형식을 선택하세요.'); return; }
+  setHint('');
+
+  const keepTree = $('#optTree').checked;
+  const prefixFolder = !keepTree && $('#optPrefix').checked;
+  const used = new Set();
+
+  setBusy(true);
+  $('#bar').classList.add('on');
+  $('#barFill').style.width = '0%';
+  log('ZIP 생성 시작 · ' + m.length + '개', 'dim');
+
+  const entries = [];
+  let bytes = 0, i = 0;
+  for (const f of m){
+    try {
+      const blob = await f.getBlob();
+      const sub = keepTree ? dirName(f.path) : '';
+      const name = keepTree
+        ? (sub ? sub + '/' : '') + cleanSeg(f.name)
+        : uniqueName(used, '', buildName(f, prefixFolder));
+      entries.push({ name, blob });
+      bytes += blob.size;
+    } catch (e){
+      log('건너뜀: ' + f.path + ' — ' + (e && e.message ? e.message : e), 'warn');
+    }
+    i++;
+    if (i % 5 === 0 || i === m.length){
+      $('#barFill').style.width = Math.round(i / m.length * 100) + '%';
+      log('읽는 중 ' + i + '/' + m.length);
+    }
+  }
+
+  try {
+    log('압축 파일 묶는 중…', 'dim');
+    const zip = await makeZip(entries);
+    const d = new Date();
+    const stamp = d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0') +
+                  '_' + String(d.getHours()).padStart(2, '0') + String(d.getMinutes()).padStart(2, '0');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(zip);
+    a.download = '추출_' + [...state.selected].sort().join('-') + '_' + stamp + '.zip';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 8000);
+    log('완료: ' + entries.length + '개 · ' + fmtSize(bytes) + ' → ' + a.download, 'ok');
+    setHint('다운로드 폴더에 ZIP이 저장되었습니다. 압축을 풀면 한 폴더에 모여 있습니다.');
+  } catch (e){
+    log('ZIP 생성 실패: ' + (e && e.message ? e.message : e), 'err');
+    setHint('ZIP 생성에 실패했습니다. "새 폴더로 복사"를 사용해 보세요.');
+  }
+  setBusy(false);
+}
+
+/* ────────────────────────── 이벤트 연결 ────────────────────────── */
+$('#btnDir').addEventListener('click', async () => {
+  if (typeof window.showDirectoryPicker !== 'function'){
+    setHint('이 브라우저는 폴더 선택을 지원하지 않습니다. 폴더를 화면으로 끌어다 놓거나, ZIP을 만들어 넣어주세요.');
+    return;
+  }
+  try {
+    const h = await window.showDirectoryPicker({ id: 'fxIn', startIn: 'downloads' });
+    log('폴더 훑는 중: ' + h.name, 'dim');
+    setBusy(true);
+    const out = [];
+    await walkHandle(h, '', out);
+    addFiles(out, h.name);
+    log(h.name + ' → ' + out.length + '개 파일', 'ok');
+  } catch (e){
+    if (!(e && e.name === 'AbortError')) setHint('폴더를 읽지 못했습니다: ' + (e && e.message ? e.message : e));
+  } finally { setBusy(false); }
+});
+
+$('#btnZip').addEventListener('click', () => $('#zipInput').click());
+
+$('#zipInput').addEventListener('change', async (ev) => {
+  const files = [...ev.target.files];
+  ev.target.value = '';
+  if (!files.length) return;
+  setBusy(true);
+  for (const zf of files){
+    try {
+      log('ZIP 여는 중: ' + zf.name, 'dim');
+      const list = await readZip(zf);
+      addFiles(list, zf.name);
+      log(zf.name + ' → ' + list.length + '개 파일', 'ok');
+    } catch (e){
+      log(zf.name + ' 실패: ' + (e && e.message ? e.message : e), 'err');
+    }
+  }
+  setBusy(false);
+});
+
+$('#btnClear').addEventListener('click', () => {
+  state.files = []; state.sources = []; state.exts = new Map(); state.selected.clear();
+  $('#log').innerHTML = ''; $('#log').classList.remove('on');
+  $('#bar').classList.remove('on'); $('#barFill').style.width = '0%';
+  setHint('');
+  recompute();
+});
+
+const drop = $('#drop');
+['dragenter','dragover'].forEach(t => drop.addEventListener(t, (e) => {
+  e.preventDefault(); e.stopPropagation(); drop.classList.add('over');
+}));
+['dragleave','dragend'].forEach(t => drop.addEventListener(t, (e) => {
+  e.preventDefault(); e.stopPropagation(); drop.classList.remove('over');
+}));
+drop.addEventListener('drop', async (e) => {
+  e.preventDefault(); e.stopPropagation();
+  drop.classList.remove('over');
+  const items = e.dataTransfer.items ? [...e.dataTransfer.items] : [];
+  const entries = items.map(it => (it.webkitGetAsEntry ? it.webkitGetAsEntry() : null)).filter(Boolean);
+
+  setBusy(true);
+  if (entries.length){
+    for (const en of entries){
+      try {
+        if (en.isFile && /\.zip$/i.test(en.name)){
+          const f = await new Promise((res, rej) => en.file(res, rej));
+          const list = await readZip(f);
+          addFiles(list, f.name);
+          log(f.name + ' → ' + list.length + '개 파일', 'ok');
+        } else if (en.isDirectory){
+          const out = [];
+          await walkEntry(en, '', out);
+          addFiles(out, en.name);
+          log(en.name + ' → ' + out.length + '개 파일', 'ok');
+        } else if (en.isFile){
+          const f = await new Promise((res, rej) => en.file(res, rej));
+          addFiles([{ path: f.name, name: f.name, size: f.size, getBlob: () => Promise.resolve(f) }], f.name);
+          log(f.name + ' 추가', 'ok');
+        }
+      } catch (err){
+        log(en.name + ' 실패: ' + (err && err.message ? err.message : err), 'err');
+      }
+    }
+  } else if (e.dataTransfer.files && e.dataTransfer.files.length){
+    for (const f of [...e.dataTransfer.files]){
+      if (/\.zip$/i.test(f.name)){
+        try { const list = await readZip(f); addFiles(list, f.name); log(f.name + ' → ' + list.length + '개', 'ok'); }
+        catch (err){ log(f.name + ' 실패: ' + err.message, 'err'); }
+      }
+    }
+  }
+  setBusy(false);
+});
+
+document.querySelectorAll('[data-preset]').forEach(b => {
+  b.addEventListener('click', () => {
+    const p = b.dataset.preset;
+    const has = (e) => state.exts.has(e);
+    if (p === 'none') state.selected.clear();
+    else if (p === 'all') [...state.exts.keys()].forEach(e => state.selected.add(e));
+    else if (p === 'pdf') { state.selected.clear(); if (has('pdf')) state.selected.add('pdf'); }
+    else if (p === 'img') IMG.filter(has).forEach(e => state.selected.add(e));
+    else if (p === 'doc') OFFICE.filter(has).forEach(e => state.selected.add(e));
+    renderChips(); renderSummary();
+  });
+});
+
+$('#optTree').addEventListener('change', (e) => {
+  const w = $('#optPrefixWrap');
+  const cb = $('#optPrefix');
+  if (e.target.checked){ cb.checked = false; w.classList.add('dim'); }
+  else { cb.checked = true; w.classList.remove('dim'); }
+});
+
+$('#btnCopy').addEventListener('click', doCopy);
+$('#btnDownload').addEventListener('click', doDownload);
+
+if (typeof window.showDirectoryPicker !== 'function'){
+  setHint('이 브라우저에서는 폴더 직접 저장이 제한됩니다. Chrome 또는 Edge에서 열면 폴더로 바로 복사할 수 있습니다. (ZIP 다운로드는 어디서나 가능)');
+}
+</script>
+</body>
+</html>

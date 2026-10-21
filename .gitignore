@@ -1,0 +1,10 @@
+# OS
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# 임시/테스트
+_test/
+_preview.html
+_*.png
+*.log

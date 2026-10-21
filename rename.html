@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>파일 이름 정리기</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#151b23; --panel2:#1b2430; --panel3:#101720;
+    --line:#28313d; --line2:#39485a;
+    --tx:#e6edf3; --tx2:#9aa7b4; --tx3:#68737f;
+    --accent:#4c8dff; --accent-d:#2f6fe0; --ok:#3fb950; --warn:#d29922; --err:#f85149;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--tx);
+    font:13.5px/1.55 "Segoe UI","Malgun Gothic",system-ui,-apple-system,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  header{
+    display:flex; align-items:center; gap:13px; padding:16px 22px;
+    border-bottom:1px solid var(--line); background:linear-gradient(180deg,#141b24,#0f151c);
+    position:sticky; top:0; z-index:20;
+  }
+  .logo{
+    width:36px;height:36px;flex:0 0 36px;border-radius:10px;
+    background:linear-gradient(145deg,#4c8dff,#2f6fe0);
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#fff;
+    box-shadow:0 5px 14px rgba(47,111,224,.32);
+  }
+  h1{margin:0;font-size:16px;font-weight:650;letter-spacing:-.2px}
+  .sub{margin:1px 0 0;color:var(--tx3);font-size:11.5px}
+  header .sp{flex:1}
+  .badge{
+    font-size:11.5px;color:var(--tx2);border:1px solid var(--line);border-radius:99px;
+    padding:4px 11px;background:var(--panel2);
+  }
+  .badge b{color:var(--tx)}
+
+  .cols{display:grid; grid-template-columns:432px minmax(0,1fr); gap:0; align-items:start}
+  .left{
+    padding:16px 18px 60px; border-right:1px solid var(--line);
+    height:calc(100vh - 69px); overflow-y:auto;
+  }
+  .right{padding:16px 20px 60px; height:calc(100vh - 69px); overflow-y:auto}
+
+  .sec{margin-bottom:16px}
+  .sec-h{
+    display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;letter-spacing:.5px;
+    color:var(--tx2);text-transform:uppercase;margin-bottom:9px;
+  }
+  .sec-h i{
+    width:17px;height:17px;border-radius:5px;background:var(--panel2);border:1px solid var(--line);
+    display:inline-flex;align-items:center;justify-content:center;font-style:normal;font-size:10px;
+    color:var(--tx);font-weight:700;flex:0 0 17px;
+  }
+
+  .btn{
+    appearance:none;border:1px solid var(--line);background:var(--panel2);color:var(--tx);
+    padding:7px 13px;border-radius:8px;font-size:12.5px;font-weight:600;cursor:pointer;
+    font-family:inherit;transition:.13s;white-space:nowrap;
+  }
+  .btn:hover{background:#232e3b;border-color:var(--line2)}
+  .btn:active{transform:translateY(1px)}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.primary:hover{background:var(--accent-d)}
+  .btn.ghost{background:transparent;color:var(--tx2)}
+  .btn.ghost:hover{color:var(--tx)}
+  .btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+  .btn.armed{background:var(--warn);border-color:var(--warn);color:#1a1300}
+  .btn.wide{width:100%;padding:10px;font-size:13px}
+
+  .srcbox{
+    border:1.5px dashed #33404f;border-radius:10px;background:rgba(28,36,47,.4);
+    padding:14px;text-align:center;transition:.15s;
+  }
+  .srcbox.over{border-color:var(--accent);background:rgba(76,141,255,.09)}
+  .srcbox .t1{font-size:12.5px;font-weight:600}
+  .srcbox .t2{font-size:11.5px;color:var(--tx3);margin-top:3px}
+  .srcinfo{margin-top:9px;font-size:12px;color:var(--tx2);display:none}
+  .srcinfo.on{display:block}
+  .srcinfo b{color:var(--tx)}
+
+  .rule{border:1px solid var(--line);border-radius:10px;background:var(--panel);margin-bottom:8px;overflow:hidden}
+  .rule.off{opacity:.5}
+  .rh{display:flex;align-items:center;gap:9px;padding:9px 11px;cursor:pointer;user-select:none}
+  .rh:hover{background:var(--panel2)}
+  .rh input{width:15px;height:15px;accent-color:var(--accent);cursor:pointer;margin:0}
+  .rh .rt{font-size:12.5px;font-weight:650}
+  .rh .rd{font-size:11px;color:var(--tx3);margin-left:auto;text-align:right}
+  .rb{padding:0 11px 11px 35px;display:grid;gap:7px}
+  .rule.off .rb{display:none}
+  .fr{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11.5px;color:var(--tx2)}
+  .fr > label{white-space:nowrap}
+  input[type=text],input[type=number],select{
+    background:var(--panel3);border:1px solid var(--line);color:var(--tx);border-radius:6px;
+    padding:4px 7px;font:12px/1.4 "Segoe UI","Malgun Gothic",sans-serif;min-width:0;
+  }
+  input[type=text]:focus,input[type=number]:focus,select:focus{outline:none;border-color:var(--accent)}
+  input[type=text]{flex:1}
+  .w60{width:60px;flex:0 0 60px} .w52{width:52px;flex:0 0 52px} .w80{width:80px;flex:0 0 80px}
+  .chk{display:inline-flex;align-items:center;gap:5px;cursor:pointer;font-size:11.5px;color:var(--tx2)}
+  .chk input{width:13px;height:13px;accent-color:var(--accent);margin:0;cursor:pointer}
+  .hintline{font-size:11px;color:var(--tx3);line-height:1.5}
+
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+  .toolbar{display:flex;gap:6px;flex-wrap:wrap}
+
+  /* 미리보기 */
+  .sumbar{
+    display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 13px;margin-bottom:11px;
+    font-size:12.5px;color:var(--tx2);
+  }
+  .sumbar b{color:var(--tx);font-size:14px}
+  .sumbar .sp{flex:1}
+  .pill{font-size:11.5px;border-radius:99px;padding:3px 9px;border:1px solid var(--line);background:var(--panel2)}
+  .pill.chg{color:var(--accent);border-color:rgba(76,141,255,.4);background:rgba(76,141,255,.1)}
+  .pill.same{color:var(--tx3)}
+  .pill.warn{color:var(--warn);border-color:rgba(210,153,34,.4);background:rgba(210,153,34,.1)}
+  .pill.err{color:var(--err);border-color:rgba(248,81,73,.4);background:rgba(248,81,73,.1)}
+
+  .tablewrap{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel)}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  thead th{
+    position:sticky;top:0;background:#1a222c;color:var(--tx2);font-weight:600;text-align:left;
+    padding:8px 10px;border-bottom:1px solid var(--line);font-size:11px;letter-spacing:.3px;z-index:2;
+  }
+  tbody td{padding:6px 10px;border-bottom:1px solid #1e2733;vertical-align:middle}
+  tbody tr:hover{background:#182029}
+  td.n{color:var(--tx3);text-align:right;width:42px;font-variant-numeric:tabular-nums}
+  td.kind{width:34px;color:var(--tx3);font-size:11px}
+  td.old{color:var(--tx2);word-break:break-all;max-width:260px}
+  td.old .dir{display:block;font-size:10.5px;color:var(--tx3);margin-bottom:1px}
+  td.arr{width:22px;color:var(--tx3);text-align:center}
+  td.new{color:var(--tx);font-weight:600;word-break:break-all;max-width:300px}
+  td.new.same{color:var(--tx3);font-weight:400}
+  td.new.err{color:var(--err)}
+  td.st{width:74px;text-align:right}
+  .stt{font-size:10.5px;padding:1px 7px;border-radius:99px;border:1px solid var(--line)}
+  .stt.ok{color:var(--accent);border-color:rgba(76,141,255,.45);background:rgba(76,141,255,.1)}
+  .stt.same{color:var(--tx3)}
+  .stt.warn{color:var(--warn);border-color:rgba(210,153,34,.45);background:rgba(210,153,34,.1)}
+  .stt.err{color:var(--err);border-color:rgba(248,81,73,.45);background:rgba(248,81,73,.1)}
+
+  .empty{padding:46px 20px;text-align:center;color:var(--tx3);font-size:13px;line-height:1.9}
+  .empty b{color:var(--tx2)}
+
+  .actbar{display:flex;gap:8px;align-items:center;margin-top:13px;flex-wrap:wrap}
+  .actbar .sp{flex:1}
+  .log{
+    margin-top:12px;background:#0b0f14;border:1px solid var(--line);border-radius:9px;
+    padding:9px 11px;font:11.5px/1.65 "Cascadia Mono",Consolas,monospace;color:var(--tx2);
+    max-height:160px;overflow:auto;display:none;
+  }
+  .log.on{display:block}
+  .log .ok{color:var(--ok)} .log .err{color:var(--err)} .log .warn{color:var(--warn)} .log .dim{color:var(--tx3)}
+  .bar{height:5px;background:#202a36;border-radius:99px;overflow:hidden;margin-top:10px;display:none}
+  .bar.on{display:block}
+  .bar > div{height:100%;width:0;background:linear-gradient(90deg,#4c8dff,#6fa6ff);transition:width .1s}
+
+  .note{
+    font-size:11.5px;color:var(--tx2);background:rgba(76,141,255,.07);border:1px solid rgba(76,141,255,.25);
+    border-radius:8px;padding:8px 11px;line-height:1.65;margin-top:10px;
+  }
+  .note.warn{background:rgba(210,153,34,.07);border-color:rgba(210,153,34,.3)}
+  .note b{color:var(--tx)}
+  code{background:var(--panel3);border:1px solid var(--line);border-radius:4px;padding:0 4px;font-size:11px}
+</style>
+</head>
+<body>
+<style>
+  .topnav{
+    display:flex;align-items:center;gap:3px;height:36px;padding:0 14px;
+    background:#0b1017;border-bottom:1px solid #28313d;
+    font:600 12px/1 "Segoe UI","Malgun Gothic",system-ui,sans-serif;
+    position:relative;z-index:50;flex:0 0 auto;
+  }
+  .topnav a{color:#9aa7b4;text-decoration:none;padding:6px 11px;border-radius:6px;transition:.13s}
+  .topnav a:hover{background:#1b2430;color:#e6edf3}
+  .topnav a.on{background:rgba(76,141,255,.15);color:#4c8dff}
+  .topnav .tn-home{color:#68737f;font-weight:700}
+  .topnav .tn-home:hover{color:#e6edf3}
+  .topnav .tn-sep{width:1px;height:14px;background:#28313d;margin:0 7px}
+  .topnav .tn-sp{flex:1}
+  .topnav .tn-name{color:#4b5561;font-weight:600;font-size:11.5px}
+</style><style>.left,.right{height:calc(100vh - 105px)!important}</style><nav class="topnav"><a class="tn-home" href="index.html">사무툴</a><span class="tn-sep"></span><a href="extract.html">형식 추출</a><a href="rename.html" class="on">이름 정리</a><a href="excel.html">엑셀 진단</a></nav>
+
+<header>
+  <div class="logo">RN</div>
+  <div>
+    <h1>파일 이름 정리기</h1>
+    <p class="sub">폴더를 고르고 규칙을 걸면 이름이 한 번에 바뀝니다. 바뀔 이름을 먼저 보여 주고, 방금 한 일은 되돌릴 수 있습니다.</p>
+  </div>
+  <div class="sp"></div>
+  <div class="badge" id="capBadge">준비됨</div>
+</header>
+
+<main class="cols">
+  <!-- ══════════ 왼쪽: 설정 ══════════ -->
+  <section class="left">
+
+    <div class="sec">
+      <div class="sec-h"><i>1</i>폴더 고르기</div>
+      <div class="srcbox" id="drop">
+        <div class="t1">폴더를 여기로 끌어다 놓으세요</div>
+        <div class="t2">또는 아래 버튼으로 선택 · 하위 폴더까지 가능</div>
+        <div class="toolbar" style="justify-content:center;margin-top:10px">
+          <button class="btn primary" id="btnPick">폴더 선택</button>
+          <button class="btn ghost" id="btnClear">비우기</button>
+        </div>
+      </div>
+      <div class="srcinfo" id="srcInfo"></div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-h"><i>2</i>대상</div>
+      <div class="fr" style="gap:12px;margin-bottom:7px">
+        <label class="chk"><input type="checkbox" id="optFiles" checked>파일</label>
+        <label class="chk"><input type="checkbox" id="optDirs">폴더</label>
+        <label class="chk"><input type="checkbox" id="optRecursive">하위 폴더까지</label>
+      </div>
+      <div class="fr">
+        <label>확장자만</label>
+        <input type="text" id="optExt" placeholder="예: pdf, jpg (비우면 전부)">
+      </div>
+      <div class="hintline" style="margin-top:5px">폴더 이름을 바꾸려면 <b>하위 폴더까지</b>를 끄세요.</div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-h"><i>3</i>번호 매길 순서</div>
+      <div class="row2">
+        <select id="sortKey">
+          <option value="name">이름순 · 폴더별로 묶어서</option>
+          <option value="flat">이름순 · 전체 통으로</option>
+          <option value="mtime">수정한 날짜</option>
+          <option value="size">파일 크기</option>
+        </select>
+        <select id="sortDir">
+          <option value="asc">오름차순 (1,2,3…)</option>
+          <option value="desc">내림차순 (…3,2,1)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-h"><i>4</i>규칙 <span style="color:var(--tx3);font-weight:400;text-transform:none;letter-spacing:0">— 켠 것만, 위에서 아래 순서로 적용</span></div>
+
+      <!-- R4 -->
+      <div class="rule off" id="rule4">
+        <label class="rh"><input type="checkbox" id="r4on"><span class="rt">폴더명을 파일명 앞에 붙이기</span><span class="rd">증빙 정리용</span></label>
+        <div class="rb">
+          <div class="fr">
+            <label>구분자</label><input type="text" class="w60" id="r4sep" value="__">
+            <label class="chk"><input type="checkbox" id="r4parent">상위 폴더명 사용</label>
+          </div>
+          <div class="hintline" id="r4prev">예: <code>35. OH_GEUNYOUNG__영수증1.pdf</code></div>
+        </div>
+      </div>
+
+      <!-- R2 -->
+      <div class="rule off" id="rule2">
+        <label class="rh"><input type="checkbox" id="r2on"><span class="rt">찾아서 바꾸기</span><span class="rd">문자열·정규식</span></label>
+        <div class="rb">
+          <div class="fr"><label style="flex:0 0 34px">찾기</label><input type="text" id="r2find" placeholder="찾을 글자"></div>
+          <div class="fr"><label style="flex:0 0 34px">바꾸기</label><input type="text" id="r2repl" placeholder="바꿀 글자 (비우면 삭제)"></div>
+          <div class="fr">
+            <label class="chk"><input type="checkbox" id="r2regex">정규식</label>
+            <label class="chk"><input type="checkbox" id="r2ci">대소문자 무시</label>
+            <select id="r2target" style="margin-left:auto">
+              <option value="name">이름만</option>
+              <option value="all">확장자까지</option>
+              <option value="ext">확장자만</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- R3 -->
+      <div class="rule off" id="rule3">
+        <label class="rh"><input type="checkbox" id="r3on"><span class="rt">글자 정리</span><span class="rd">공백·금지문자</span></label>
+        <div class="rb">
+          <div class="fr" style="gap:10px">
+            <label class="chk"><input type="checkbox" id="r3trim" checked>앞뒤 공백</label>
+            <label class="chk"><input type="checkbox" id="r3space" checked>공백 한 칸으로</label>
+            <label class="chk"><input type="checkbox" id="r3bad" checked>금지문자 → _</label>
+          </div>
+          <div class="fr">
+            <label>지울 글자</label><input type="text" id="r3strip" placeholder="예: (1),최종,복사본 (쉼표로 구분)">
+          </div>
+          <div class="fr">
+            <label>대소문자</label>
+            <select id="r3case" style="flex:1">
+              <option value="keep">그대로</option>
+              <option value="lower">전부 소문자</option>
+              <option value="upper">전부 대문자</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- R6 -->
+      <div class="rule off" id="rule6">
+        <label class="rh"><input type="checkbox" id="r6on"><span class="rt">길이 자르기</span><span class="rd">너무 긴 이름</span></label>
+        <div class="rb">
+          <div class="fr"><label>이름 최대</label><input type="number" class="w60" id="r6max" value="60" min="1"><label>자</label></div>
+        </div>
+      </div>
+
+      <!-- R5 -->
+      <div class="rule off" id="rule5">
+        <label class="rh"><input type="checkbox" id="r5on"><span class="rt">확장자 통일</span><span class="rd">.JPG → .jpg</span></label>
+        <div class="rb">
+          <div class="fr"><select id="r5case" style="flex:1"><option value="lower">소문자로</option><option value="upper">대문자로</option></select></div>
+        </div>
+      </div>
+
+      <!-- R1 -->
+      <div class="rule" id="rule1">
+        <label class="rh"><input type="checkbox" id="r1on"><span class="rt">번호 매기기</span><span class="rd">01_ 1. [01]</span></label>
+        <div class="rb">
+          <div class="fr">
+            <label>형식</label>
+            <select id="r1style" style="flex:1">
+              <option value="pad">01_ (밑줄)</option>
+              <option value="dot">1. (점)</option>
+              <option value="bracket">[01]</option>
+              <option value="dash">01-</option>
+              <option value="space">01 (공백)</option>
+              <option value="custom">직접 입력</option>
+            </select>
+          </div>
+          <div class="fr" id="r1customWrap" style="display:none">
+            <label>모양</label><input type="text" id="r1custom" value="{n}_" placeholder="{n} 자리에 번호">
+          </div>
+          <div class="fr">
+            <label>시작</label><input type="number" class="w52" id="r1start" value="1" min="0">
+            <label>증가</label><input type="number" class="w52" id="r1step" value="1" min="1">
+            <label>자릿수</label>
+            <select id="r1digits" style="width:74px">
+              <option value="auto">자동</option><option value="2">2</option><option value="3">3</option>
+            </select>
+          </div>
+          <div class="fr">
+            <label>위치</label>
+            <select id="r1pos" style="flex:1"><option value="prefix">앞에</option><option value="suffix">뒤에</option></select>
+            <label class="chk"><input type="checkbox" id="r1perdir" checked>폴더마다 새로</label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-h"><i>5</i>내 설정 저장</div>
+      <div class="fr">
+        <input type="text" id="presetName" placeholder="설정 이름 (예: 증빙 폴더 정리)">
+        <button class="btn" id="btnSavePreset">저장</button>
+      </div>
+      <div class="fr" style="margin-top:7px">
+        <select id="presetList" style="flex:1"><option value="">— 저장한 설정 —</option></select>
+        <button class="btn" id="btnLoadPreset">불러오기</button>
+        <button class="btn ghost" id="btnDelPreset">삭제</button>
+      </div>
+    </div>
+
+    <div class="note">
+      <b>적용 순서</b>는 고정입니다: 폴더명 붙이기 → 찾아 바꾸기 → 글자 정리 → 길이 자르기 → 확장자 통일 → 번호 매기기.
+      번호는 맨 마지막에 붙어야 앞 규칙에 휘둘리지 않습니다.
+    </div>
+  </section>
+
+  <!-- ══════════ 오른쪽: 미리보기 ══════════ -->
+  <section class="right">
+    <div class="sumbar">
+      <span><b id="sTotal">0</b>개</span>
+      <span class="pill chg" id="sChg">바뀜 0</span>
+      <span class="pill same" id="sSame">그대로 0</span>
+      <span class="pill err" id="sErr" style="display:none">문제 0</span>
+      <span class="sp"></span>
+      <button class="btn ghost" id="btnRefresh">새로 고침</button>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th class="n">#</th><th class="kind"></th><th>지금 이름</th><th class="arr"></th><th>바뀔 이름</th><th class="st"></th></tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+      <div class="empty" id="emptyBox">
+        <b>아직 폴더를 고르지 않았습니다.</b><br>왼쪽 1번에서 폴더를 넣으면 바뀔 이름이 여기에 나옵니다.
+      </div>
+    </div>
+
+    <div class="actbar">
+      <button class="btn primary" id="btnApply" disabled>이 이름으로 바꾸기</button>
+      <button class="btn" id="btnUndo" disabled>방금 한 일 되돌리기</button>
+      <span class="sp"></span>
+      <button class="btn ghost" id="btnLogCsv" disabled>이력 CSV</button>
+    </div>
+    <div class="bar" id="bar"><div id="barFill"></div></div>
+    <div class="log" id="log"></div>
+
+    <div class="note" style="margin-top:14px">
+      <b>안전장치</b> · 바뀌는 이름은 적용 전에 전부 표로 보여 줍니다. 이름이 겹치거나 쓸 수 없는 글자가 있으면 그 항목은 적용에서 빠집니다.
+      적용한 뒤 <b>방금 한 일 되돌리기</b>를 누르면 원래 이름으로 돌아갑니다(창을 닫으면 되돌리기 기록은 사라집니다).
+      파일 내용은 읽지도 바꾸지도 않고, 이름만 바꿉니다.
+    </div>
+  </section>
+</main>
+
+<script>
+"use strict";
+
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => [...document.querySelectorAll(s)];
+
+const state = {
+  rootHandle: null,
+  rootName: '',
+  entries: [],
+  plan: [],
+  lastUndo: null,
+  lastCsv: null,
+  busy: false,
+  armed: false,
+};
+
+/* ─────────── 유틸 ─────────── */
+function log(msg, cls){
+  const el = $('#log'); el.classList.add('on');
+  const d = document.createElement('div');
+  if (cls) d.className = cls;
+  d.textContent = msg;
+  el.appendChild(d); el.scrollTop = el.scrollHeight;
+}
+function fmtSize(n){
+  if (n < 1024) return n + ' B';
+  const u = ['KB','MB','GB']; let i = -1;
+  do { n /= 1024; i++; } while (n >= 1024 && i < u.length - 1);
+  return (n >= 100 ? n.toFixed(0) : n.toFixed(1)) + ' ' + u[i];
+}
+function esc(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function splitName(name, kind){
+  if (kind === 'dir') return { stem: name, ext: '' };
+  const i = name.lastIndexOf('.');
+  if (i <= 0) return { stem: name, ext: '' };
+  return { stem: name.slice(0, i), ext: name.slice(i) };
+}
+const BAD = /[\\/:*?"<>|]/;
+const BAD_G = /[\\/:*?"<>|]/g;
+
+/* 자연 정렬: 파일2 < 파일10 */
+function natural(a, b){
+  const ra = String(a).match(/\d+|\D+/g) || [];
+  const rb = String(b).match(/\d+|\D+/g) || [];
+  const n = Math.min(ra.length, rb.length);
+  for (let i = 0; i < n; i++){
+    const x = ra[i], y = rb[i];
+    const xn = /^\d+$/.test(x), yn = /^\d+$/.test(y);
+    if (xn && yn){
+      const d = parseInt(x, 10) - parseInt(y, 10);
+      if (d) return d;
+    } else if (xn !== yn){
+      return xn ? -1 : 1;
+    } else {
+      const c = x.localeCompare(y, 'ko');
+      if (c) return c;
+    }
+  }
+  return ra.length - rb.length;
+}
+
+/* ─────────── 옵션 읽기 ─────────── */
+function opts(){
+  const o = {
+    files: $('#optFiles').checked,
+    dirs: $('#optDirs').checked,
+    recursive: $('#optRecursive').checked,
+    extFilter: $('#optExt').value.trim().toLowerCase(),
+    sortKey: $('#sortKey').value,
+    sortDir: $('#sortDir').value,
+
+    r1: { on: $('#r1on').checked, style: $('#r1style').value, custom: $('#r1custom').value,
+          start: +$('#r1start').value || 0, step: +$('#r1step').value || 1,
+          digits: $('#r1digits').value, pos: $('#r1pos').value, perdir: $('#r1perdir').checked },
+    r2: { on: $('#r2on').checked, find: $('#r2find').value, repl: $('#r2repl').value,
+          regex: $('#r2regex').checked, ci: $('#r2ci').checked, target: $('#r2target').value },
+    r3: { on: $('#r3on').checked, trim: $('#r3trim').checked, space: $('#r3space').checked,
+          bad: $('#r3bad').checked, strip: $('#r3strip').value, cse: $('#r3case').value },
+    r4: { on: $('#r4on').checked, sep: $('#r4sep').value, parent: $('#r4parent').checked },
+    r5: { on: $('#r5on').checked, cse: $('#r5case').value },
+    r6: { on: $('#r6on').checked, max: +$('#r6max').value || 0 },
+  };
+  return o;
+}
+
+/* ─────────── 폴더 읽기 ─────────── */
+async function collect(){
+  const o = opts();
+  const out = [];
+
+  async function walk(dir, prefix){
+    for await (const [name, h] of dir.entries()){
+      if (h.kind === 'file'){
+        let size = 0, mtime = 0;
+        try { const f = await h.getFile(); size = f.size; mtime = f.lastModified; } catch(e){}
+        out.push({ handle: h, name, kind: 'file', size, mtime, dirKey: prefix, parent: dir, path: prefix + name });
+      } else {
+        if (!o.recursive){
+          out.push({ handle: h, name, kind: 'dir', size: 0, mtime: 0, dirKey: prefix, parent: dir, path: prefix + name + '/' });
+        }
+        if (o.recursive) await walk(h, prefix + name + '/');
+      }
+    }
+  }
+  await walk(state.rootHandle, '');
+  return out;
+}
+
+/* ─────────── 이름 계산 ─────────── */
+function applyReplace(s, r2){
+  if (!r2.find) return s;
+  try {
+    if (r2.regex){
+      const re = new RegExp(r2.find, r2.ci ? 'gi' : 'g');
+      return s.replace(re, r2.repl);
+    }
+    if (r2.ci){
+      const re = new RegExp(r2.find.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+      return s.replace(re, r2.repl);
+    }
+    return s.split(r2.find).join(r2.repl);
+  } catch(e){ return s; }
+}
+
+function cleanText(s, r3){
+  let t = s;
+  if (r3.trim) t = t.trim();
+  if (r3.strip){
+    for (const token of r3.strip.split(',')){
+      const tok = token.trim();
+      if (tok) t = t.split(tok).join('');
+    }
+  }
+  if (r3.space) t = t.replace(/\s+/g, ' ').trim();
+  if (r3.bad) t = t.replace(BAD_G, '_');
+  if (r3.cse === 'lower') t = t.toLowerCase();
+  if (r3.cse === 'upper') t = t.toUpperCase();
+  return t;
+}
+
+function numberToken(n, r1){
+  const w = r1.digits === 'auto' ? String(n).length : +r1.digits;
+  const s = String(n).padStart(w, '0');
+  switch (r1.style){
+    case 'pad': return s + '_';
+    case 'dot': return n + '.';
+    case 'bracket': return '[' + s + ']';
+    case 'dash': return s + '-';
+    case 'space': return s + ' ';
+    case 'custom': return (r1.custom || '{n}_').replace(/\{n\}/g, s);
+    default: return s + '_';
+  }
+}
+
+function computeOne(e, num, o){
+  let { stem, ext } = splitName(e.name, e.kind);
+
+  // R4 폴더명 붙이기
+  if (o.r4.on){
+    const parts = e.path.split('/').filter(Boolean);
+    const folder = o.r4.parent
+      ? (parts.length >= 3 ? parts[parts.length - 3] : '')
+      : (parts.length >= 2 ? parts[parts.length - 2] : '');
+    if (folder){
+      const f = folder.replace(BAD_G, '_').replace(/\s+/g, ' ').trim();
+      stem = f + (o.r4.sep || '') + stem;
+    }
+  }
+  // R2 찾아 바꾸기
+  if (o.r2.on){
+    if (o.r2.target === 'name') stem = applyReplace(stem, o.r2);
+    else if (o.r2.target === 'all'){ stem = applyReplace(stem, o.r2); ext = applyReplace(ext, o.r2); }
+    else ext = applyReplace(ext, o.r2);
+  }
+  // R3 글자 정리
+  if (o.r3.on) stem = cleanText(stem, o.r3);
+  // R6 길이
+  if (o.r6.on && o.r6.max > 0) stem = stem.slice(0, o.r6.max);
+  // R5 확장자
+  if (o.r5.on && ext) ext = o.r5.cse === 'lower' ? ext.toLowerCase() : ext.toUpperCase();
+  // R1 번호
+  if (o.r1.on && num !== null){
+    const t = numberToken(num, o.r1);
+    stem = o.r1.pos === 'prefix' ? t + stem : stem + t;
+  }
+  return (stem + ext).trim();
+}
+
+/* ─────────── 계획 세우기 ─────────── */
+function buildPlan(){
+  const o = opts();
+  let list = state.entries.slice();
+
+  if (!o.files) list = list.filter(e => e.kind !== 'file');
+  if (!o.dirs) list = list.filter(e => e.kind !== 'dir');
+  if (o.extFilter){
+    const exts = o.extFilter.split(/[,;\s]+/).filter(Boolean).map(x => x.replace(/^\./, '').toLowerCase());
+    list = list.filter(e => {
+      if (e.kind !== 'file') return true;
+      const i = e.name.lastIndexOf('.');
+      const ex = i > 0 ? e.name.slice(i + 1).toLowerCase() : '';
+      return exts.includes(ex);
+    });
+  }
+
+  const byGroup = (a,b) => natural(a.dirKey, b.dirKey) || natural(a.name, b.name);
+  const cmp = {
+    name: byGroup,
+    flat: (a,b) => natural(a.name, b.name),
+    mtime: (a,b) => (a.mtime - b.mtime) || natural(a.name, b.name),
+    size: (a,b) => (a.size - b.size) || natural(a.name, b.name),
+  }[o.sortKey] || byGroup;
+
+  list.sort((a,b) => o.sortDir === 'desc' ? -cmp(a,b) : cmp(a,b));
+
+  const counters = new Map();
+  let global = o.r1.start;
+  const plan = [];
+
+  for (const e of list){
+    let num = null;
+    if (o.r1.on){
+      if (o.r1.perdir){
+        if (!counters.has(e.dirKey)) counters.set(e.dirKey, o.r1.start);
+        num = counters.get(e.dirKey);
+        counters.set(e.dirKey, num + o.r1.step);
+      } else {
+        num = global;
+        global += o.r1.step;
+      }
+    }
+    const nn = computeOne(e, num, o);
+    plan.push({ e, oldName: e.name, newName: nn, dirKey: e.dirKey, kind: e.kind, changed: nn !== e.name, status: 'ok', why: '' });
+  }
+
+  // 검사
+  const seen = new Map();
+  for (const p of plan){
+    if (!p.changed) { p.status = 'same'; continue; }
+    if (!p.newName || p.newName === '.' || p.newName === '..'){
+      p.status = 'err'; p.why = '빈 이름'; continue;
+    }
+    if (BAD.test(p.newName)){
+      p.status = 'err'; p.why = '쓸 수 없는 글자'; continue;
+    }
+    const key = p.dirKey + '\u0000' + p.newName.toLowerCase();
+    if (seen.has(key)){
+      p.status = 'dup'; p.why = '이름 겹침';
+      seen.get(key).status = 'dup'; seen.get(key).why = '이름 겹침';
+    } else {
+      seen.set(key, p);
+    }
+  }
+  // 새 이름이 다른 항목의 지금 이름과 같은 경우(순서 문제) → 2단계로 처리하므로 통과
+  return plan;
+}
+
+/* ─────────── 미리보기 ─────────── */
+function render(){
+  state.plan = buildPlan();
+  const plan = state.plan;
+  const chg = plan.filter(p => p.changed && (p.status === 'ok'));
+  const bad = plan.filter(p => p.status === 'dup' || p.status === 'err');
+  const same = plan.filter(p => !p.changed);
+
+  $('#sTotal').textContent = plan.length;
+  $('#sChg').textContent = '바뀜 ' + chg.length;
+  $('#sSame').textContent = '그대로 ' + same.length;
+  const errEl = $('#sErr');
+  if (bad.length){ errEl.style.display = ''; errEl.textContent = '문제 ' + bad.length; }
+  else errEl.style.display = 'none';
+
+  const box = $('#emptyBox');
+  const tb = $('#tbody');
+
+  if (!plan.length){
+    tb.innerHTML = '';
+    box.style.display = '';
+    box.innerHTML = state.rootHandle
+      ? '<b>조건에 맞는 항목이 없습니다.</b><br>2번 대상·확장자 조건을 확인해 보세요.'
+      : '<b>아직 폴더를 고르지 않았습니다.</b><br>왼쪽 1번에서 폴더를 넣으면 바뀔 이름이 여기에 나옵니다.';
+    $('#btnApply').disabled = true;
+    return;
+  }
+  box.style.display = 'none';
+
+  const LIMIT = 400;
+  const rows = plan.slice(0, LIMIT).map((p, i) => {
+    const cls = p.status === 'same' ? 'same' : (p.status === 'dup' || p.status === 'err') ? 'err' : '';
+    const st = p.status === 'same' ? '<span class="stt same">그대로</span>'
+      : p.status === 'dup' ? '<span class="stt err">겹침</span>'
+      : p.status === 'err' ? '<span class="stt err">불가</span>'
+      : '<span class="stt ok">바뀜</span>';
+    return '<tr>' +
+      '<td class="n">' + (i + 1) + '</td>' +
+      '<td class="kind">' + (p.kind === 'dir' ? 'DIR' : 'FILE') + '</td>' +
+      '<td class="old">' + (p.dirKey ? '<span class="dir">' + esc(p.dirKey) + '</span>' : '') + esc(p.oldName) + '</td>' +
+      '<td class="arr">→</td>' +
+      '<td class="new ' + cls + '">' + esc(p.newName) + '</td>' +
+      '<td class="st">' + st + '</td>' +
+    '</tr>';
+  }).join('');
+  tb.innerHTML = rows + (plan.length > LIMIT
+    ? '<tr><td colspan="6" style="text-align:center;color:var(--tx3);padding:10px">… 외 ' + (plan.length - LIMIT) + '개 (미리보기는 400개까지 표시)</td></tr>'
+    : '');
+
+  $('#btnApply').disabled = chg.length === 0 || state.busy;
+  if (!state.busy) disarm();
+}
+
+/* ─────────── 적용 ─────────── */
+async function renameEntry(e, newName){
+  if (typeof e.handle.move === 'function'){
+    await e.handle.move(newName);
+    return 'move';
+  }
+  if (e.kind === 'file'){
+    const file = await e.handle.getFile();
+    const nh = await e.parent.getFileHandle(newName, { create: true });
+    const w = await nh.createWritable();
+    await w.write(file);
+    await w.close();
+    await e.parent.removeEntry(e.name);
+    e.handle = nh;
+    return 'copy';
+  }
+  throw new Error('이 브라우저는 폴더 이름 바꾸기를 지원하지 않습니다.');
+}
+
+function setBusy(on){
+  state.busy = on;
+  ['#btnApply','#btnUndo','#btnPick','#btnClear','#btnRefresh'].forEach(s => { const b = $(s); if (b) b.disabled = on; });
+  if (!on) render();
+}
+function disarm(){
+  state.armed = false;
+  const b = $('#btnApply');
+  b.classList.remove('armed');
+  const n = state.plan.filter(p => p.changed && p.status === 'ok').length;
+  b.textContent = '이 이름으로 바꾸기';
+  b.disabled = n === 0;
+}
+
+async function apply(){
+  const changes = state.plan.filter(p => p.changed && p.status === 'ok');
+  if (!changes.length) return;
+
+  if (!state.armed){
+    state.armed = true;
+    const b = $('#btnApply');
+    b.classList.add('armed');
+    b.textContent = '한 번 더 누르면 ' + changes.length + '개 적용';
+    setTimeout(() => { if (state.armed) disarm(); }, 6000);
+    return;
+  }
+  disarm();
+  setBusy(true);
+  $('#bar').classList.add('on');
+  $('#barFill').style.width = '0%';
+
+  // 이름이 서로 엇갈리는 경우( A→B, B→A )는 임시 이름을 거쳐 간다
+  const oldSet = new Set(changes.map(c => c.dirKey + '\u0000' + c.oldName.toLowerCase()));
+  const needTwo = changes.some(c => oldSet.has(c.dirKey + '\u0000' + c.newName.toLowerCase()));
+
+  const work = changes.map((c, i) => ({
+    c, cur: c.e.name, target: c.newName,
+    tmp: '__ren' + i + '_' + Math.random().toString(36).slice(2, 7),
+  }));
+
+  let done = 0, failed = 0;
+  const undo = [];
+  const csv = [['폴더', '바뀌기 전', '바뀐 뒤']];
+
+  log('적용 시작 · ' + work.length + '개' + (needTwo ? ' (이름이 엇갈려 2단계)' : ''), 'dim');
+
+  const step = async (w, name) => {
+    try {
+      await renameEntry(w.c.e, name);
+      w.c.e.name = name;
+      w.c.e.path = (w.c.dirKey || '') + name;
+      w.cur = name;
+      return true;
+    } catch (err){
+      failed++;
+      log('실패: ' + w.c.oldName + ' → ' + name + ' — ' + (err && err.message ? err.message : err), 'err');
+      return false;
+    }
+  };
+
+  if (needTwo){
+    for (const w of work) await step(w, w.tmp);
+    for (const w of work) await step(w, w.target);
+  } else {
+    for (const w of work) await step(w, w.target);
+  }
+
+  for (const w of work){
+    if (w.cur === w.target){
+      done++;
+      undo.push({ e: w.c.e, from: w.c.oldName, to: w.target });
+      csv.push([w.c.dirKey || '.', w.c.oldName, w.target]);
+    }
+  }
+
+  $('#barFill').style.width = '100%';
+  log('완료: ' + done + '개 이름 바꿈' + (failed ? ' · 실패 ' + failed + '개' : ''), failed ? 'warn' : 'ok');
+
+  state.lastUndo = undo.length ? undo : null;
+  state.lastCsv = csv;
+  $('#btnUndo').disabled = !state.lastUndo;
+  $('#btnLogCsv').disabled = !state.lastCsv;
+
+  // 목록 다시 읽기
+  try {
+    state.entries = await collect();
+  } catch(e){
+    log('목록 새로 읽기 실패: ' + e.message, 'warn');
+  }
+  setBusy(false);
+}
+
+/* ─────────── 되돌리기 ─────────── */
+async function undoLast(){
+  if (!state.lastUndo || !state.lastUndo.length) return;
+  if (!state.armed){
+    state.armed = true;
+    const b = $('#btnUndo');
+    b.classList.add('armed');
+    b.textContent = '한 번 더 누르면 되돌림 (' + state.lastUndo.length + '개)';
+    setTimeout(() => {
+      if (state.armed){
+        state.armed = false; b.classList.remove('armed');
+        b.textContent = '방금 한 일 되돌리기';
+      }
+    }, 6000);
+    return;
+  }
+  state.armed = false;
+  $('#btnUndo').classList.remove('armed');
+  $('#btnUndo').textContent = '방금 한 일 되돌리기';
+
+  setBusy(true);
+  log('되돌리는 중 · ' + state.lastUndo.length + '개', 'dim');
+  let ok = 0, fail = 0;
+  // 역순으로 되돌린다
+  for (const u of state.lastUndo.slice().reverse()){
+    try {
+      await renameEntry(u.e, u.from);
+      u.e.name = u.from;
+      ok++;
+    } catch(e){
+      fail++;
+      log('되돌리기 실패: ' + u.to + ' → ' + u.from + ' — ' + (e && e.message ? e.message : e), 'err');
+    }
+  }
+  log('되돌림: ' + ok + '개' + (fail ? ' · 실패 ' + fail + '개' : ''), fail ? 'warn' : 'ok');
+  state.lastUndo = null;
+  $('#btnUndo').disabled = true;
+  try { state.entries = await collect(); } catch(e){}
+  setBusy(false);
+}
+
+/* ─────────── CSV ─────────── */
+function downloadCsv(){
+  if (!state.lastCsv) return;
+  const text = '\uFEFF' + state.lastCsv.map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\r\n');
+  const blob = new Blob([text], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  const d = new Date();
+  a.href = URL.createObjectURL(blob);
+  a.download = '이름변경이력_' + d.getFullYear() + String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0') + '_' + String(d.getHours()).padStart(2,'0') + String(d.getMinutes()).padStart(2,'0') + '.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+
+/* ─────────── 소스 ─────────── */
+async function setRoot(handle){
+  const perm = await handle.requestPermission({ mode: 'readwrite' });
+  if (perm !== 'granted'){ log('이 폴더에 쓸 권한이 없습니다.', 'err'); return; }
+  state.rootHandle = handle;
+  state.rootName = handle.name;
+  state.lastUndo = null; state.lastCsv = null;
+  $('#btnUndo').disabled = true; $('#btnLogCsv').disabled = true;
+
+  log('폴더 읽는 중: ' + handle.name, 'dim');
+  state.entries = await collect();
+  const nf = state.entries.filter(e => e.kind === 'file').length;
+  const nd = state.entries.filter(e => e.kind === 'dir').length;
+  $('#srcInfo').classList.add('on');
+  $('#srcInfo').innerHTML = '<b>' + esc(handle.name) + '</b> · 파일 ' + nf + '개' + (nd ? ' · 폴더 ' + nd + '개' : '');
+  log(handle.name + ' → ' + state.entries.length + '개 읽음', 'ok');
+  render();
+}
+
+/* ─────────── 프리셋 ─────────── */
+const PKEY = 'frename_presets_v1';
+function loadPresets(){
+  try { return JSON.parse(localStorage.getItem(PKEY) || '{}'); } catch(e){ return {}; }
+}
+function savePresets(p){
+  try { localStorage.setItem(PKEY, JSON.stringify(p)); } catch(e){}
+}
+function refreshPresetList(){
+  const sel = $('#presetList');
+  const p = loadPresets();
+  sel.innerHTML = '<option value="">— 저장한 설정 —</option>' +
+    Object.keys(p).sort().map(k => '<option value="' + esc(k) + '">' + esc(k) + '</option>').join('');
+}
+const FIELDS = ['optFiles','optDirs','optRecursive','optExt','sortKey','sortDir','r1on','r1style','r1custom','r1start','r1step','r1digits','r1pos','r1perdir','r2on','r2find','r2repl','r2regex','r2ci','r2target','r3on','r3trim','r3space','r3bad','r3strip','r3case','r4on','r4sep','r4parent','r5on','r5case','r6on','r6max'];
+
+/* ─────────── 이벤트 ─────────── */
+$('#btnPick').addEventListener('click', async () => {
+  if (typeof window.showDirectoryPicker !== 'function'){
+    log('이 브라우저는 폴더 선택을 지원하지 않습니다. Chrome 또는 Edge에서 열어 주세요.', 'err');
+    return;
+  }
+  try {
+    const h = await window.showDirectoryPicker({ id: 'renSrc', mode: 'readwrite', startIn: 'downloads' });
+    setBusy(true);
+    await setRoot(h);
+  } catch(e){
+    if (!(e && e.name === 'AbortError')) log('폴더를 열지 못했습니다: ' + (e && e.message ? e.message : e), 'err');
+  } finally { setBusy(false); }
+});
+
+$('#btnClear').addEventListener('click', () => {
+  state.rootHandle = null; state.rootName = ''; state.entries = []; state.plan = [];
+  state.lastUndo = null; state.lastCsv = null;
+  $('#srcInfo').classList.remove('on'); $('#srcInfo').innerHTML = '';
+  $('#log').classList.remove('on'); $('#log').innerHTML = '';
+  $('#bar').classList.remove('on');
+  $('#btnUndo').disabled = true; $('#btnLogCsv').disabled = true;
+  render();
+});
+
+$('#btnRefresh').addEventListener('click', async () => {
+  if (!state.rootHandle) return;
+  setBusy(true);
+  try { state.entries = await collect(); log('새로 읽음 · ' + state.entries.length + '개', 'ok'); }
+  catch(e){ log('읽기 실패: ' + e.message, 'err'); }
+  setBusy(false);
+});
+
+$('#btnApply').addEventListener('click', apply);
+$('#btnUndo').addEventListener('click', undoLast);
+$('#btnLogCsv').addEventListener('click', downloadCsv);
+
+const drop = $('#drop');
+['dragenter','dragover'].forEach(t => drop.addEventListener(t, e => {
+  e.preventDefault(); e.stopPropagation(); drop.classList.add('over');
+}));
+['dragleave','dragend'].forEach(t => drop.addEventListener(t, e => {
+  e.preventDefault(); e.stopPropagation(); drop.classList.remove('over');
+}));
+drop.addEventListener('drop', async (e) => {
+  e.preventDefault(); e.stopPropagation();
+  drop.classList.remove('over');
+  const items = e.dataTransfer.items ? [...e.dataTransfer.items] : [];
+  let handle = null;
+  for (const it of items){
+    if (it.kind === 'file' && typeof it.getAsFileSystemHandle === 'function'){
+      const h = await it.getAsFileSystemHandle();
+      if (h && h.kind === 'directory'){ handle = h; break; }
+    }
+  }
+  if (!handle){ log('폴더를 끌어다 놓아 주세요. (파일 하나만으로는 이름을 바꿀 수 없습니다)', 'warn'); return; }
+  setBusy(true);
+  try { await setRoot(handle); } catch(err){ log('실패: ' + err.message, 'err'); }
+  setBusy(false);
+});
+
+/* 규칙 카드 켜고 끄기 */
+['r1','r2','r3','r4','r5','r6'].forEach(k => {
+  const cb = $('#' + k + 'on'), card = $('#rule' + k.slice(1));
+  cb.addEventListener('change', () => {
+    card.classList.toggle('off', !cb.checked);
+    render();
+  });
+});
+$$('input, select').forEach(el => {
+  if (el.id === 'presetName' || el.id === 'presetList') return;
+  el.addEventListener('input', () => render());
+  el.addEventListener('change', () => render());
+});
+
+$('#r1style').addEventListener('change', () => {
+  $('#r1customWrap').style.display = $('#r1style').value === 'custom' ? '' : 'none';
+});
+
+$('#optDirs').addEventListener('change', () => {
+  if ($('#optDirs').checked && $('#optRecursive').checked){
+    log('폴더 이름은 "하위 폴더까지"를 끈 상태에서만 바꿀 수 있습니다. 지금은 파일만 바뀝니다.', 'warn');
+  }
+});
+
+/* 하위 폴더 옵션은 실제로 폴더를 다시 읽어야 하므로 자동 재수집 */
+$('#optRecursive').addEventListener('change', async () => {
+  if (!state.rootHandle) return;
+  setBusy(true);
+  try {
+    state.entries = await collect();
+    log('다시 읽음 · ' + state.entries.length + '개', 'ok');
+  } catch(e){ log('읽기 실패: ' + e.message, 'err'); }
+  setBusy(false);
+});
+
+/* 프리셋 */
+$('#btnSavePreset').addEventListener('click', () => {
+  const name = $('#presetName').value.trim();
+  if (!name){ log('설정 이름을 적어 주세요.', 'warn'); return; }
+  const data = {};
+  FIELDS.forEach(id => {
+    const el = $('#' + id);
+    if (!el) return;
+    data[id] = el.type === 'checkbox' ? el.checked : el.value;
+  });
+  const p = loadPresets();
+  p[name] = data;
+  savePresets(p);
+  refreshPresetList();
+  $('#presetList').value = name;
+  log('설정 저장: ' + name, 'ok');
+});
+$('#btnLoadPreset').addEventListener('click', () => {
+  const name = $('#presetList').value;
+  if (!name) return;
+  const p = loadPresets()[name];
+  if (!p) return;
+  FIELDS.forEach(id => {
+    const el = $('#' + id);
+    if (!el || !(id in p)) return;
+    if (el.type === 'checkbox') el.checked = !!p[id];
+    else el.value = p[id];
+  });
+  ['r1','r2','r3','r4','r5','r6'].forEach(k => $('#rule' + k.slice(1)).classList.toggle('off', !$('#' + k + 'on').checked));
+  $('#r1customWrap').style.display = $('#r1style').value === 'custom' ? '' : 'none';
+  log('설정 불러옴: ' + name, 'ok');
+  render();
+});
+$('#btnDelPreset').addEventListener('click', () => {
+  const name = $('#presetList').value;
+  if (!name) return;
+  const p = loadPresets();
+  delete p[name];
+  savePresets(p);
+  refreshPresetList();
+  log('설정 삭제: ' + name, 'dim');
+});
+
+/* 시작 */
+(function init(){
+  const hasMove = typeof FileSystemFileHandle !== 'undefined' && 'move' in FileSystemFileHandle.prototype;
+  const hasPick = typeof window.showDirectoryPicker === 'function';
+  const badge = $('#capBadge');
+  if (!hasPick){
+    badge.textContent = '이 브라우저는 지원하지 않습니다';
+    badge.style.color = 'var(--err)';
+    log('Chrome 또는 Edge에서 열어 주세요. 폴더 접근 권한이 필요합니다.', 'err');
+  } else if (!hasMove){
+    badge.textContent = '이름 바꾸기 제한';
+    badge.style.color = 'var(--warn)';
+    log('이 브라우저는 이름 바꾸기를 지원하지 않아 파일만 복사 방식으로 처리됩니다. Chrome/Edge 최신 버전을 권장합니다.', 'warn');
+  } else {
+    badge.textContent = '바로 쓸 수 있음';
+  }
+  refreshPresetList();
+  render();
+})();
+</script>
+</body>
+</html>

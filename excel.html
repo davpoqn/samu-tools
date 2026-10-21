@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>엑셀 수식 오류 진단기</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#151b23; --panel2:#1b2430; --panel3:#101720;
+    --line:#28313d; --line2:#39485a;
+    --tx:#e6edf3; --tx2:#9aa7b4; --tx3:#68737f;
+    --accent:#4c8dff; --accent-d:#2f6fe0; --ok:#3fb950; --warn:#d29922; --err:#f85149;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:var(--bg);color:var(--tx);
+    font:13.5px/1.6 "Segoe UI","Malgun Gothic",system-ui,-apple-system,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1120px;margin:0 auto;padding:26px 22px 70px}
+  header{display:flex;align-items:center;gap:13px;margin-bottom:20px}
+  .logo{
+    width:40px;height:40px;flex:0 0 40px;border-radius:11px;
+    background:linear-gradient(145deg,#4c8dff,#2f6fe0);display:flex;align-items:center;justify-content:center;
+    font-weight:700;font-size:14px;color:#fff;box-shadow:0 6px 16px rgba(47,111,224,.32);
+  }
+  h1{margin:0;font-size:17px;font-weight:650;letter-spacing:-.2px}
+  .sub{margin:2px 0 0;color:var(--tx2);font-size:12px}
+
+  .drop{
+    border:1.5px dashed #33404f;border-radius:13px;background:rgba(28,36,47,.45);
+    padding:30px 20px;text-align:center;transition:.15s;
+  }
+  .drop.over{border-color:var(--accent);background:rgba(76,141,255,.08)}
+  .drop strong{display:block;font-size:14.5px;font-weight:650}
+  .drop span{display:block;color:var(--tx2);font-size:12.5px;margin-top:5px}
+  .row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:15px}
+
+  .btn{
+    appearance:none;border:1px solid var(--line);background:var(--panel2);color:var(--tx);
+    padding:8px 15px;border-radius:9px;font-size:12.5px;font-weight:600;cursor:pointer;
+    font-family:inherit;transition:.13s;
+  }
+  .btn:hover{background:#232e3b;border-color:var(--line2)}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.primary:hover{background:var(--accent-d)}
+  .btn.ghost{background:transparent;color:var(--tx2)}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:16px 0}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:12px 14px}
+  .card .n{font-size:22px;font-weight:700;letter-spacing:-.5px;line-height:1.2}
+  .card .l{font-size:11.5px;color:var(--tx2);margin-top:2px}
+  .card.err .n{color:var(--err)} .card.warn .n{color:var(--warn)} .card.ok .n{color:var(--ok)}
+
+  .tabs{display:flex;gap:6px;margin:18px 0 12px;border-bottom:1px solid var(--line);padding-bottom:0}
+  .tab{
+    appearance:none;background:transparent;border:none;border-bottom:2px solid transparent;
+    color:var(--tx2);padding:8px 13px;font:600 12.5px inherit;cursor:pointer;font-family:inherit;
+  }
+  .tab:hover{color:var(--tx)}
+  .tab.on{color:var(--tx);border-bottom-color:var(--accent)}
+  .tab .cnt{font-size:11px;color:var(--tx3);margin-left:4px}
+
+  .item{
+    background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--err);
+    border-radius:9px;padding:11px 13px;margin-bottom:8px;
+  }
+  .item.warn{border-left-color:var(--warn)}
+  .item.info{border-left-color:var(--line2)}
+  .ih{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+  .cellref{
+    font:600 12px "Cascadia Mono",Consolas,monospace;color:var(--tx);
+    background:var(--panel3);border:1px solid var(--line);border-radius:5px;padding:1px 7px;cursor:pointer;
+  }
+  .cellref:hover{border-color:var(--accent)}
+  .sheetname{font-size:11.5px;color:var(--tx3)}
+  .badge{
+    font-size:11px;font-weight:700;border-radius:5px;padding:1px 7px;
+    background:rgba(248,81,73,.14);color:var(--err);border:1px solid rgba(248,81,73,.35);
+    font-family:"Cascadia Mono",Consolas,monospace;
+  }
+  .badge.warn{background:rgba(210,153,34,.14);color:var(--warn);border-color:rgba(210,153,34,.35)}
+  .badge.info{background:rgba(76,141,255,.13);color:var(--accent);border-color:rgba(76,141,255,.35)}
+  .diag{font-size:12.5px;color:var(--tx);margin-top:6px;line-height:1.6}
+  .diag b{color:var(--accent)}
+  .diag code{background:var(--panel3);border:1px solid var(--line);border-radius:4px;padding:0 4px;font-size:11.5px;color:#ffd580}
+  .frm{
+    margin-top:7px;background:#0b0f14;border:1px solid var(--line);border-radius:7px;
+    padding:7px 10px;font:11.5px/1.6 "Cascadia Mono",Consolas,monospace;color:#9fd2a0;
+    word-break:break-all;white-space:pre-wrap;
+  }
+  .frm .tag{color:var(--tx3);font-size:10.5px;margin-left:6px}
+  .empty{padding:36px 20px;text-align:center;color:var(--tx3);font-size:13px}
+  .empty b{color:var(--tx2)}
+  .good{padding:30px;text-align:center;color:var(--ok);font-size:13.5px}
+  .log{
+    margin-top:14px;background:#0b0f14;border:1px solid var(--line);border-radius:9px;
+    padding:9px 11px;font:11.5px/1.65 "Cascadia Mono",Consolas,monospace;color:var(--tx2);
+    max-height:140px;overflow:auto;display:none;
+  }
+  .log.on{display:block}
+  .log .ok{color:var(--ok)} .log .err{color:var(--err)} .log .warn{color:var(--warn)} .log .dim{color:var(--tx3)}
+  .foot{margin-top:22px;color:var(--tx3);font-size:11.5px;line-height:1.9;text-align:center}
+  .bar{height:5px;background:#202a36;border-radius:99px;overflow:hidden;margin-top:12px;display:none}
+  .bar.on{display:block}
+  .bar>div{height:100%;width:0;background:linear-gradient(90deg,#4c8dff,#6fa6ff);transition:width .1s}
+  .sheetlist{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+  .chip{font-size:11.5px;background:var(--panel2);border:1px solid var(--line);border-radius:99px;padding:3px 10px;color:var(--tx2)}
+  .chip b{color:var(--tx)}
+</style>
+</head>
+<body>
+<style>
+  .topnav{
+    display:flex;align-items:center;gap:3px;height:36px;padding:0 14px;
+    background:#0b1017;border-bottom:1px solid #28313d;
+    font:600 12px/1 "Segoe UI","Malgun Gothic",system-ui,sans-serif;
+    position:relative;z-index:50;flex:0 0 auto;
+  }
+  .topnav a{color:#9aa7b4;text-decoration:none;padding:6px 11px;border-radius:6px;transition:.13s}
+  .topnav a:hover{background:#1b2430;color:#e6edf3}
+  .topnav a.on{background:rgba(76,141,255,.15);color:#4c8dff}
+  .topnav .tn-home{color:#68737f;font-weight:700}
+  .topnav .tn-home:hover{color:#e6edf3}
+  .topnav .tn-sep{width:1px;height:14px;background:#28313d;margin:0 7px}
+  .topnav .tn-sp{flex:1}
+  .topnav .tn-name{color:#4b5561;font-weight:600;font-size:11.5px}
+</style><nav class="topnav"><a class="tn-home" href="index.html">사무툴</a><span class="tn-sep"></span><a href="extract.html">형식 추출</a><a href="rename.html">이름 정리</a><a href="excel.html" class="on">엑셀 진단</a></nav>
+<div class="wrap">
+
+  <header>
+    <div class="logo">XL</div>
+    <div>
+      <h1>엑셀 수식 오류 진단기</h1>
+      <p class="sub">xlsx 파일을 넣으면 오류난 셀을 찾아 <b>왜 그런지</b>까지 짚어 줍니다. 파일은 PC 밖으로 나가지 않습니다.</p>
+    </div>
+  </header>
+
+  <div class="drop" id="drop">
+    <strong>엑셀 파일(.xlsx)을 여기로 끌어다 놓으세요</strong>
+    <span>여러 개 동시에 가능 · 매크로(.xlsm)도 수식만 읽습니다</span>
+    <div class="row">
+      <button class="btn primary" id="btnPick">파일 선택</button>
+      <button class="btn ghost" id="btnClear">비우기</button>
+    </div>
+    <input type="file" id="fileInput" accept=".xlsx,.xlsm" multiple hidden />
+  </div>
+
+  <div class="bar" id="bar"><div id="barFill"></div></div>
+
+  <div id="result" style="display:none">
+    <div class="cards" id="cards"></div>
+    <div class="sheetlist" id="sheetList"></div>
+
+    <div class="tabs">
+      <button class="tab on" data-tab="err">오류 <span class="cnt" id="cntErr"></span></button>
+      <button class="tab" data-tab="range">범위 어긋남 <span class="cnt" id="cntRange"></span></button>
+      <button class="tab" data-tab="info">시트 정보 <span class="cnt" id="cntInfo"></span></button>
+    </div>
+
+    <div id="tab-err"></div>
+    <div id="tab-range" style="display:none"></div>
+    <div id="tab-info" style="display:none"></div>
+
+    <div class="row" style="justify-content:flex-start;margin-top:16px">
+      <button class="btn" id="btnCsv">결과 CSV로 저장</button>
+    </div>
+  </div>
+
+  <div class="log" id="log"></div>
+
+  <div class="foot">
+    오류 판정은 <b>파일에 마지막으로 저장된 계산 결과</b>를 읽는 방식입니다(계산을 다시 하지 않습니다). 그래서 엑셀에서 본 값과 같습니다.<br>
+    .xlsx / .xlsm 만 지원합니다. 옛 형식(.xls)은 엑셀에서 다른 이름으로 저장 → xlsx 로 바꿔 주세요.
+  </div>
+</div>
+
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => [...document.querySelectorAll(s)];
+
+const state = { files: [], rows: [], ranges: [], sheets: [], busy: false };
+let activeTab = 'err';
+
+/* ═══════════ ZIP 읽기 ═══════════ */
+function decodeName(bytes, flags){
+  if (flags & 0x800) return new TextDecoder('utf-8').decode(bytes);
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(bytes); } catch(e){}
+  try { return new TextDecoder('euc-kr').decode(bytes); } catch(e){}
+  return new TextDecoder('utf-8').decode(bytes);
+}
+async function inflate(u8){
+  const st = new Blob([u8]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+  return new Uint8Array(await new Response(st).arrayBuffer());
+}
+async function unzip(buf){
+  const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+  let eocd = -1;
+  for (let i = buf.length - 22; i >= Math.max(0, buf.length - 22 - 65535); i--){
+    if (buf[i] === 0x50 && buf[i+1] === 0x4b && buf[i+2] === 0x05 && buf[i+3] === 0x06){ eocd = i; break; }
+  }
+  if (eocd < 0) throw new Error('xlsx 구조를 찾지 못했습니다. 엑셀 파일이 맞는지 확인해 주세요.');
+  const count = dv.getUint16(eocd + 10, true);
+  const cdOff = dv.getUint32(eocd + 16, true);
+  const map = new Map();
+  let p = cdOff;
+  for (let n = 0; n < count; n++){
+    if (p + 46 > buf.length || dv.getUint32(p, true) !== 0x02014b50) break;
+    const flags = dv.getUint16(p + 8, true);
+    const method = dv.getUint16(p + 10, true);
+    const csize = dv.getUint32(p + 20, true);
+    const nameLen = dv.getUint16(p + 28, true);
+    const extraLen = dv.getUint16(p + 30, true);
+    const cmtLen = dv.getUint16(p + 32, true);
+    const lho = dv.getUint32(p + 42, true);
+    const name = decodeName(buf.subarray(p + 46, p + 46 + nameLen), flags);
+    p += 46 + nameLen + extraLen + cmtLen;
+    const lNameLen = dv.getUint16(lho + 26, true);
+    const lExtraLen = dv.getUint16(lho + 28, true);
+    const start = lho + 30 + lNameLen + lExtraLen;
+    const slice = buf.subarray(start, Math.min(start + csize, buf.length));
+    if (method === 0) map.set(name, slice);
+    else if (method === 8) map.set(name, await inflate(slice));
+  }
+  return map;
+}
+const txt = (map, name) => {
+  const b = map.get(name);
+  return b ? new TextDecoder('utf-8').decode(b) : null;
+};
+function unesc(s){
+  return String(s).replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"')
+                  .replace(/&apos;/g,"'").replace(/&#(\d+);/g, (_,d)=>String.fromCharCode(+d))
+                  .replace(/&amp;/g,'&');
+}
+
+/* ═══════════ 셀 주소 ═══════════ */
+function colToNum(s){ let n = 0; for (const ch of s) n = n * 26 + (ch.charCodeAt(0) - 64); return n; }
+function numToCol(n){ let s = ''; while (n > 0){ const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = (n - r - 1) / 26; } return s; }
+function parseRef(ref){
+  const m = /^([A-Z]{1,3})(\d+)$/.exec(ref);
+  return m ? { col: colToNum(m[1]), row: +m[2], colStr: m[1] } : null;
+}
+
+/* ═══════════ 시트 XML 파싱 ═══════════ */
+function parseSheetXml(xml){
+  const cells = new Map();
+  let i = 0;
+  const len = xml.length;
+  while ((i = xml.indexOf('<c ', i)) !== -1){
+    let j = i + 3, q = false;
+    while (j < len){ const ch = xml[j]; if (ch === '"') q = !q; else if (ch === '>' && !q) break; j++; }
+    if (j >= len) break;
+    const attrs = xml.slice(i + 3, j);
+    const selfClose = xml[j - 1] === '/';
+    let body = '', next;
+    if (selfClose){ body = ''; next = j + 1; }
+    else {
+      const close = xml.indexOf('</c>', j);
+      if (close === -1) break;
+      body = xml.slice(j + 1, close);
+      next = close + 4;
+    }
+    const rm = /\br="([A-Z]{1,3}\d+)"/.exec(attrs);
+    if (rm){
+      const tm = /\bt="([^"]+)"/.exec(attrs);
+      const sm = /\bs="(\d+)"/.exec(attrs);
+      let f = null, ftype = null, fsi = null, fref = null;
+      const fm = /<f([^>]*?)(\/>|>([\s\S]*?)<\/f>)/.exec(body);
+      if (fm){
+        const fa = fm[1] || '';
+        const ft = /\bt="([^"]+)"/.exec(fa);
+        const fi = /\bsi="(\d+)"/.exec(fa);
+        const fr = /\bref="([^"]+)"/.exec(fa);
+        ftype = ft ? ft[1] : 'normal';
+        fsi = fi ? +fi[1] : null;
+        fref = fr ? fr[1] : null;
+        f = fm[3] !== undefined ? unesc(fm[3]) : null;
+      }
+      const vm = /<v>([\s\S]*?)<\/v>/.exec(body);
+      const im = /<is>[\s\S]*?<t[^>]*>([\s\S]*?)<\/t>/.exec(body);
+      cells.set(rm[1], {
+        t: tm ? tm[1] : 'n',
+        s: sm ? +sm[1] : null,
+        v: vm ? unesc(vm[1]) : null,
+        inline: im ? unesc(im[1]) : null,
+        f, ftype, fsi, fref,
+      });
+    }
+    i = next;
+  }
+  return cells;
+}
+
+/* 공유 수식 옮기기 */
+function shiftFormula(formula, dRow, dCol){
+  const parts = String(formula).split('"');
+  for (let k = 0; k < parts.length; k += 2){
+    parts[k] = parts[k].replace(/(\$?)([A-Z]{1,3})(\$?)(\d+)/g, (m, a1, col, a2, row) => {
+      let c = colToNum(col), r = +row;
+      if (!a2) r += dRow;
+      if (!a1) c += dCol;
+      if (r < 1 || c < 1) return m;
+      return a1 + numToCol(c) + a2 + r;
+    });
+  }
+  return parts.join('"');
+}
+
+/* ═══════════ 통합 문서 읽기 ═══════════ */
+async function readWorkbook(file){
+  const buf = new Uint8Array(await file.arrayBuffer());
+  const map = await unzip(buf);
+
+  // 공유 문자열
+  let shared = [];
+  const ssXml = txt(map, 'xl/sharedStrings.xml');
+  if (ssXml){
+    const re = /<si>([\s\S]*?)<\/si>/g;
+    let m;
+    while ((m = re.exec(ssXml))){
+      const ts = [...m[1].matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)].map(x => unesc(x[1]));
+      shared.push(ts.join(''));
+    }
+  }
+
+  // 워크북 + 관계
+  const wbXml = txt(map, 'xl/workbook.xml');
+  if (!wbXml) throw new Error('엑셀 통합 문서를 읽지 못했습니다.');
+  const relsXml = txt(map, 'xl/_rels/workbook.xml.rels') || '';
+  const rels = new Map();
+  for (const m of relsXml.matchAll(/<Relationship[^>]*Id="([^"]+)"[^>]*Target="([^"]+)"/g)){
+    rels.set(m[1], m[2]);
+  }
+  const sheets = [];
+  for (const m of wbXml.matchAll(/<sheet\b([^>]*)\/?>/g)){
+    const a = m[1];
+    const name = /\bname="([^"]*)"/.exec(a);
+    const rid = /\br:id="([^"]*)"/.exec(a);
+    const st = /\bstate="([^"]*)"/.exec(a);
+    if (!name) continue;
+    let target = rid && rels.has(rid[1]) ? rels.get(rid[1]) : null;
+    if (target){
+      target = target.replace(/^\/?xl\//, '').replace(/^\//, '');
+      if (!map.has('xl/' + target)) target = null;
+    }
+    sheets.push({ name: unesc(name[1]), hidden: st ? st[1] : null, path: target ? 'xl/' + target : null });
+  }
+
+  // 시트별 셀
+  const out = [];
+  for (const sh of sheets){
+    let cells = new Map();
+    if (sh.path){
+      const xml = txt(map, sh.path);
+      if (xml) cells = parseSheetXml(xml);
+    }
+    // 값 해석
+    const values = new Map();
+    const sharedMaster = new Map();
+    for (const [ref, c] of cells){
+      let text = null, num = null, isErr = false;
+      if (c.t === 's' && c.v !== null) text = shared[+c.v] ?? '';
+      else if (c.t === 'inlineStr') text = c.inline ?? '';
+      else if (c.t === 'e'){ text = c.v; isErr = true; }
+      else if (c.t === 'str') text = c.v;
+      else if (c.t === 'b') text = c.v === '1' ? 'TRUE' : 'FALSE';
+      else if (c.v !== null){ text = c.v; num = Number(c.v); }
+      if (text !== null && !isErr && /^#(REF!|VALUE!|DIV\/0!|N\/A|NAME\?|NUM!|NULL!|SPILL!|CALC!)$/.test(text)) isErr = true;
+      values.set(ref, { text, num, isErr, raw: c });
+    }
+    // 공유 수식 마스터 수집
+    for (const [ref, c] of cells){
+      if (c.f && c.ftype === 'shared' && c.fsi !== null && c.f) sharedMaster.set(c.fsi, { ref, f: c.f });
+    }
+    // 공유 수식 채우기
+    for (const [ref, c] of cells){
+      if (c.ftype === 'shared' && !c.f && c.fsi !== null && sharedMaster.has(c.fsi)){
+        const m = sharedMaster.get(c.fsi);
+        const a = parseRef(m.ref), b = parseRef(ref);
+        if (a && b) c.f = shiftFormula(m.f, b.row - a.row, b.col - a.col);
+        c.sharedFrom = m.ref;
+      }
+    }
+    out.push({ name: sh.name, hidden: sh.hidden, cells, values, refCount: cells.size });
+  }
+  return out;
+}
+
+/* ═══════════ 진단 ═══════════ */
+const ERR_TYPES = ['#REF!','#VALUE!','#DIV/0!','#N/A','#NAME?','#NUM!','#NULL!','#SPILL!','#CALC!'];
+
+const FUNCS = ('SUM SUMIF SUMIFS SUMPRODUCT SUBTOTAL AGGREGATE ROUND ROUNDUP ROUNDDOWN INT ABS MOD POWER SQRT '
++ 'IF IFS IFERROR IFNA AND OR NOT XOR TRUE FALSE SWITCH CHOOSE '
++ 'VLOOKUP HLOOKUP XLOOKUP LOOKUP INDEX MATCH OFFSET INDIRECT ROW COLUMN ROWS COLUMNS '
++ 'COUNT COUNTA COUNTIF COUNTIFS COUNTBLANK AVERAGE AVERAGEIF AVERAGEIFS MAX MIN MAXIFS MINIFS LARGE SMALL MEDIAN '
++ 'TEXT VALUE CONCAT CONCATENATE TEXTJOIN LEFT RIGHT MID LEN FIND SEARCH SUBSTITUTE REPLACE TRIM UPPER LOWER PROPER '
++ 'REPT EXACT NUMBERVALUE FIXED '
++ 'TODAY NOW DATE YEAR MONTH DAY HOUR MINUTE SECOND WEEKDAY WEEKNUM EDATE EOMONTH NETWORKDAYS WORKDAY DATEDIF '
++ 'SUMIFS STDEV STDEVP VAR VARP '
++ 'ISBLANK ISERROR ISERR ISNA ISNUMBER ISTEXT ISLOGICAL '
++ 'TRANSPOSE UNIQUE SORT SORTBY FILTER SEQUENCE RAND RANDBETWEEN '
++ 'PV FV PMT NPER RATE NPV IRR '
++ 'SUMX2MY2 LOG LN EXP PI SIN COS TAN ATAN2 '
++ 'HYPERLINK CELL INFO TYPE N T NA ERROR.TYPE').split(/\s+/);
+const FUNC_SET = new Set(FUNCS);
+
+function levenshtein(a, b){
+  const m = a.length, n = b.length;
+  if (!m) return n; if (!n) return m;
+  let prev = Array.from({length: n + 1}, (_, i) => i);
+  for (let i = 1; i <= m; i++){
+    const cur = [i];
+    for (let j = 1; j <= n; j++){
+      cur[j] = Math.min(prev[j] + 1, cur[j-1] + 1, prev[j-1] + (a[i-1] === b[j-1] ? 0 : 1));
+    }
+    prev = cur;
+  }
+  return prev[n];
+}
+
+function splitArgs(s){
+  const out = [];
+  let depth = 0, q = false, cur = '';
+  for (const ch of s){
+    if (ch === '"'){ q = !q; cur += ch; continue; }
+    if (!q){
+      if (ch === '('){ depth++; cur += ch; continue; }
+      if (ch === ')'){ depth--; cur += ch; continue; }
+      if (ch === ',' && depth === 0){ out.push(cur.trim()); cur = ''; continue; }
+    }
+    cur += ch;
+  }
+  if (cur.trim() !== '' || out.length) out.push(cur.trim());
+  return out;
+}
+
+function expandRange(sheet, rangeStr){
+  const m = /^\$?([A-Z]{1,3})\$?(\d+):\$?([A-Z]{1,3})\$?(\d+)$/.exec(rangeStr.replace(/\s/g, ''));
+  if (!m) return null;
+  const c1 = colToNum(m[1]), r1 = +m[2], c2 = colToNum(m[3]), r2 = +m[4];
+  const cells = [];
+  for (let r = Math.min(r1, r2); r <= Math.max(r1, r2); r++){
+    for (let c = Math.min(c1, c2); c <= Math.max(c1, c2); c++){
+      cells.push(numToCol(c) + r);
+    }
+  }
+  return { c1, r1, c2, r2, cells };
+}
+
+function refsIn(formula){
+  const out = [];
+  const parts = String(formula).split('"');
+  for (let k = 0; k < parts.length; k += 2){
+    for (const m of parts[k].matchAll(/(\$?)([A-Z]{1,3})(\$?)(\d+)/g)){
+      out.push(m[0].replace(/\$/g, ''));
+    }
+  }
+  return [...new Set(out)];
+}
+
+function diagnose(sheet, ref, cell, errVal, cellText){
+  const f = cell.f || '';
+  const V = (r) => sheet.values.get(r);
+  const show = (r) => { const v = V(r); return v && v.text !== null ? v.text : '(빈칸)'; };
+  const out = { cause: '', fix: '' };
+
+  if (errVal === '#REF!' || /#REF!/.test(f)){
+    out.cause = '수식이 가리키던 셀·행·열이 <b>삭제</b>되어 참조가 끊겼습니다.';
+    out.fix = '수식을 다시 입력하거나, 삭제한 위치를 확인해 참조를 새로 잡아 주세요.';
+    return out;
+  }
+  if (errVal === '#DIV/0!'){
+    const dens = [];
+    const parts = f.split('"');
+    for (let k = 0; k < parts.length; k += 2){
+      const re = /\/\s*(\$?[A-Z]{1,3}\$?\d+|[A-Z]{1,3}\d+)/g;
+      let m;
+      while ((m = re.exec(parts[k]))) dens.push(m[1].replace(/\$/g, ''));
+    }
+    const zero = dens.find(r => { const v = V(r); return !v || v.num === null || v.num === 0 || v.text === null; });
+    if (zero){
+      const v = V(zero);
+      const why = !v || v.text === null ? '빈칸' : (v.num === 0 ? '0' : '숫자가 아님');
+      out.cause = '나누는 값 <code>' + zero + '</code> 이(가) <b>' + why + '</b> 입니다.';
+      out.fix = 'IFERROR(...)로 감싸거나, ' + zero + '에 값이 채워지는지 확인하세요.';
+    } else {
+      out.cause = '나누는 값이 0이거나 빈칸입니다.';
+      out.fix = 'IFERROR(수식, 0) 형태로 감싸면 오류 표시를 없앨 수 있습니다.';
+    }
+    return out;
+  }
+  if (errVal === '#N/A'){
+    const m = /^\s*=?\s*(VLOOKUP|HLOOKUP|XLOOKUP|MATCH)\s*\(([\s\S]*)\)\s*$/i.exec(f);
+    if (m){
+      const fn = m[1].toUpperCase();
+      const args = splitArgs(m[2]);
+      let lookFor = null, lookFrom = '';
+      const a0 = (args[0] || '').trim();
+      if (/^".*"$/.test(a0)){ lookFor = a0.slice(1, -1); lookFrom = '수식에 직접 쓴 값'; }
+      else if (/^\$?[A-Z]{1,3}\$?\d+$/.test(a0)){ lookFor = show(a0.replace(/\$/g, '')); lookFrom = a0 + ' 셀'; }
+
+      let rangeArg = fn === 'MATCH' ? (args[1] || '') : (args[1] || '');
+      rangeArg = rangeArg.replace(/\s/g, '');
+      let rg = null;
+      if (/^\$?[A-Z]{1,3}\$?\d+:\$?[A-Z]{1,3}\$?\d+$/.test(rangeArg)) rg = expandRange(sheet, rangeArg);
+      else if (/^\$?[A-Z]{1,3}\$?\d+$/.test(rangeArg)){
+        // 단일 셀 참조 → 그 셀의 범위를 모르므로 생략
+      }
+      if (lookFor !== null && rg){
+        const firstCol = [];
+        const r1 = rg.r1, r2 = rg.r2, c = rg.c1;
+        for (let r = Math.min(r1, r2); r <= Math.max(r1, r2); r++){
+          const v = V(numToCol(c) + r);
+          if (v && v.text !== null) firstCol.push(String(v.text));
+        }
+        const target = String(lookFor);                    // 엑셀은 앞뒤 공백을 지우지 않는다
+        const key = target.toLowerCase();
+        const hit = firstCol.some(x => x.toLowerCase() === key);
+        if (!hit){
+          const spaceHit = firstCol.some(x => x.trim().toLowerCase() === target.trim().toLowerCase());
+          const near = firstCol.filter(x => {
+            const t = x.trim();
+            return t && t.toLowerCase() !== key && (t.includes(target.trim()) || target.trim().includes(t));
+          }).slice(0, 3);
+          out.cause = fn + '이(가) <code>' + esc(target) + '</code> 을(를) 찾지 못했습니다. (' +
+                      lookFrom + ', 찾는 범위 <code>' + rangeArg + '</code> ' + firstCol.length + '개 값)';
+          if (spaceHit){
+            out.cause += '<br><b>앞뒤 공백 차이</b>가 원인으로 보입니다 — 같은 값이 범위에 있지만 공백 때문에 다른 값으로 취급됩니다.';
+            out.fix = 'TRIM()으로 공백을 지우거나, 찾는 값/범위의 공백을 없애세요. IFNA(...)로 감싸면 표시를 숨길 수 있습니다.';
+          } else if (near.length){
+            out.cause += '<br>비슷한 값: <code>' + near.map(esc).join('</code>, <code>') + '</code>';
+            out.fix = '찾는 범위에 그 값이 실제로 있는지, 숫자/텍스트 형식이 다른지 확인하세요. IFNA(...)로 감싸면 표시를 숨길 수 있습니다.';
+          } else {
+            out.fix = '찾는 범위가 맞는지 확인하거나 IFNA(...)로 감싸세요.';
+          }
+          return out;
+        }
+      }
+    }
+    out.cause = '찾는 값이 없습니다(#N/A). VLOOKUP·MATCH·INDEX 계열에서 대상이 범위에 없을 때 납니다.';
+    out.fix = '찾는 범위와 값을 확인하거나 IFNA(...)로 감싸세요.';
+    return out;
+  }
+  if (errVal === '#VALUE!'){
+    const rs = refsIn(f).filter(r => { const v = V(r); return v && v.text !== null && v.num === null; });
+    if (rs.length){
+      out.cause = '수식이 숫자를 기대하는 자리에 <b>글자</b>가 들어 있습니다 → <code>' + rs[0] + '</code> 값: <code>' + esc(String(show(rs[0])).slice(0, 40)) + '</code>';
+      out.fix = '해당 셀의 값이 숫자인지 확인하세요. 숫자처럼 보여도 텍스트면 곱하기·나누기가 안 됩니다(VALUE()로 변환하거나 서식을 숫자로).';
+    } else {
+      out.cause = '계산에 쓸 수 없는 값(글자·빈칸)이 섞였습니다.';
+      out.fix = '수식 안의 셀들이 모두 숫자인지 확인하세요.';
+    }
+    return out;
+  }
+  if (errVal === '#NAME?'){
+    const names = [...f.matchAll(/([A-Za-z][A-Za-z0-9\.]*)\s*\(/g)].map(m => m[1]);
+    const bad = names.filter(n => !FUNC_SET.has(n.toUpperCase()));
+    if (bad.length){
+      const b = bad[0];
+      let best = null, bestD = 99;
+      for (const fn of FUNCS){
+        const d = levenshtein(b.toUpperCase(), fn);
+        if (d < bestD){ bestD = d; best = fn; }
+      }
+      out.cause = '함수 이름 <code>' + esc(b) + '</code> 을(를) 알 수 없습니다.' +
+        (bestD <= 3 ? ' <b>' + best + '</b> 아닌가요?' : '');
+      out.fix = bestD <= 3 ? '함수 이름을 ' + best + '(으)로 고쳐 보세요.' : '함수 이름 철자와 이름 정의(수식 → 이름 관리자)를 확인하세요.';
+    } else {
+      out.cause = '알 수 없는 이름이 쓰였습니다(함수 오타 또는 정의되지 않은 이름).';
+      out.fix = '수식 → 이름 관리자에서 이름이 정의돼 있는지 확인하세요.';
+    }
+    return out;
+  }
+  if (errVal === '#NUM!'){ out.cause = '계산 결과가 표현 범위를 넘었거나(너무 큼/작음), SQRT(음수) 같은 수학적으로 불가능한 계산입니다.'; out.fix = '입력값 범위를 확인하세요.'; return out; }
+  if (errVal === '#SPILL!'){ out.cause = '배열 수식의 결과가 다른 셀과 겹칩니다.'; out.fix = '결과가 퍼질 자리를 비우세요.'; return out; }
+  if (errVal === '#CALC!'){ out.cause = '계산할 수 없는 배열이 만들어졌습니다(빈 배열 등).'; out.fix = 'FILTER 결과가 비었는지 확인하세요.'; return out; }
+  if (errVal === '#NULL!'){ out.cause = '범위 사이 연산자(공백)가 잘못 들어갔습니다.'; out.fix = '수식에서 띄어쓰기로 구분된 두 범위를 확인하세요.'; return out; }
+
+  out.cause = '오류 값이 저장되어 있습니다.';
+  out.fix = '수식을 확인하세요.';
+  return out;
+}
+
+/* 범위 어긋남: 같은 열에서 수식 모양이 다른 셀 */
+function signature(formula, ref){
+  const me = parseRef(ref);
+  if (!me) return null;
+  const parts = String(formula).split('"');
+  for (let k = 0; k < parts.length; k += 2){
+    parts[k] = parts[k].replace(/(\$?)([A-Z]{1,3})(\$?)(\d+)/g, (m, a1, col, a2, row) => {
+      const c = colToNum(col), r = +row;
+      const dc = c - me.col, dr = r - me.row;
+      return (a1 ? '$C' : 'C') + dc + (a2 ? '$R' : 'R') + dr;
+    });
+  }
+  return parts.join('"');
+}
+
+function findRangeIssues(sheet){
+  const byCol = new Map();
+  for (const [ref, c] of sheet.cells){
+    if (!c.f) continue;
+    if (c.ftype === 'array') continue;
+    const pr = parseRef(ref);
+    if (!pr) continue;
+    const sig = signature(c.f, ref);
+    if (!sig) continue;
+    const key = pr.colStr;
+    if (!byCol.has(key)) byCol.set(key, []);
+    byCol.get(key).push({ ref, sig, f: c.f, row: pr.row });
+  }
+  const issues = [];
+  for (const [col, list] of byCol){
+    if (list.length < 5) continue;
+    const groups = new Map();
+    for (const it of list){
+      if (!groups.has(it.sig)) groups.set(it.sig, []);
+      groups.get(it.sig).push(it);
+    }
+    if (groups.size < 2) continue;
+    const sorted = [...groups.entries()].sort((a, b) => b[1].length - a[1].length);
+    const [domSig, domList] = sorted[0];
+    const domRatio = domList.length / list.length;
+    if (domRatio < 0.6) continue;
+    const out = [];
+    for (const [, g] of sorted.slice(1)){
+      if (g.length > 3) continue;
+      for (const it of g) out.push(it);
+    }
+    if (!out.length || out.length > 6) continue;
+    out.sort((a, b) => a.row - b.row);
+    issues.push({
+      col, domF: domList[0].f, domRef: domList[0].ref, domCount: domList.length,
+      outliers: out.map(o => ({ ref: o.ref, f: o.f })),
+    });
+  }
+  return issues;
+}
+
+/* ═══════════ 실행 ═══════════ */
+async function analyze(files){
+  state.busy = true;
+  state.rows = []; state.ranges = []; state.sheets = [];
+  $('#bar').classList.add('on'); $('#barFill').style.width = '0%';
+  $('#log').classList.add('on'); $('#log').innerHTML = '';
+
+  let done = 0;
+  for (const file of files){
+    log('읽는 중: ' + file.name, 'dim');
+    try {
+      const sheets = await readWorkbook(file);
+      let errCount = 0, formulaCount = 0;
+      for (const sh of sheets){
+        let fCount = 0;
+        for (const [ref, c] of sh.cells) if (c.f) fCount++;
+        formulaCount += fCount;
+
+        for (const [ref, v] of sh.values){
+          const c = v.raw;
+          if (!c.f) continue;
+          const isErr = v.isErr || (v.text && ERR_TYPES.includes(String(v.text)));
+          if (!isErr) continue;
+          const d = diagnose(sh, ref, c, String(v.text || ''), v.text);
+          state.rows.push({
+            file: file.name, sheet: sh.name, ref,
+            err: String(v.text || ''), formula: c.f || '', shared: !!c.sharedFrom,
+            cause: d.cause, fix: d.fix,
+          });
+          errCount++;
+        }
+        const issues = findRangeIssues(sh);
+        for (const is of issues){
+          state.ranges.push({ file: file.name, sheet: sh.name, ...is });
+        }
+        state.sheets.push({
+          file: file.name, name: sh.name, hidden: sh.hidden,
+          cells: sh.refCount, formulas: fCount, errors: errCount,
+        });
+      }
+      log(file.name + ' → 시트 ' + sheets.length + '개 · 수식 ' + formulaCount + '개 · 오류 ' + errCount + '개',
+          errCount ? 'warn' : 'ok');
+    } catch (e){
+      log(file.name + ' 실패: ' + (e && e.message ? e.message : e), 'err');
+    }
+    done++;
+    $('#barFill').style.width = Math.round(done / files.length * 100) + '%';
+  }
+  state.busy = false;
+  render();
+}
+
+function esc(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function log(msg, cls){
+  const el = $('#log');
+  const d = document.createElement('div');
+  if (cls) d.className = cls;
+  d.textContent = msg;
+  el.appendChild(d); el.scrollTop = el.scrollHeight;
+}
+
+function render(){
+  const r = $('#result');
+  if (!state.sheets.length && !state.rows.length){ r.style.display = 'none'; return; }
+  r.style.display = '';
+
+  const totalFormulas = state.sheets.reduce((a, s) => a + s.formulas, 0);
+  const totalCells = state.sheets.reduce((a, s) => a + s.cells, 0);
+  $('#cards').innerHTML =
+    '<div class="card"><div class="n">' + state.files.length + '</div><div class="l">파일</div></div>' +
+    '<div class="card"><div class="n">' + state.sheets.length + '</div><div class="l">시트</div></div>' +
+    '<div class="card"><div class="n">' + totalFormulas.toLocaleString() + '</div><div class="l">수식 셀</div></div>' +
+    '<div class="card ' + (state.rows.length ? 'err' : 'ok') + '"><div class="n">' + state.rows.length + '</div><div class="l">오류 셀</div></div>' +
+    '<div class="card ' + (state.ranges.length ? 'warn' : '') + '"><div class="n">' + state.ranges.length + '</div><div class="l">범위 어긋남</div></div>';
+
+  $('#sheetList').innerHTML = state.sheets.map(s =>
+    '<span class="chip">' + esc(s.name) + (s.hidden ? ' <b>(숨김)</b>' : '') +
+    ' · 수식 ' + s.formulas + ' · 오류 ' + s.errors + '</span>').join('');
+
+  $('#cntErr').textContent = state.rows.length;
+  $('#cntRange').textContent = state.ranges.length;
+  $('#cntInfo').textContent = state.sheets.length;
+
+  /* 오류 탭 */
+  const errBox = $('#tab-err');
+  if (!state.rows.length){
+    errBox.innerHTML = '<div class="good">오류로 저장된 셀이 없습니다. 수식 ' + totalFormulas.toLocaleString() + '개를 확인했습니다.</div>';
+  } else {
+    errBox.innerHTML = state.rows.map((x, i) =>
+      '<div class="item">' +
+        '<div class="ih">' +
+          '<span class="badge">' + esc(x.err) + '</span>' +
+          '<span class="cellref" data-ref="' + esc(x.ref) + '" data-sheet="' + esc(x.sheet) + '">' + esc(x.ref) + '</span>' +
+          '<span class="sheetname">' + esc(x.sheet) + (state.files.length > 1 ? ' · ' + esc(x.file) : '') + '</span>' +
+        '</div>' +
+        '<div class="diag">' + x.cause + '</div>' +
+        (x.fix ? '<div class="diag" style="color:var(--tx2);font-size:12px">→ ' + x.fix + '</div>' : '') +
+        (x.formula ? '<div class="frm">' + esc(x.formula) + (x.shared ? '<span class="tag">공유 수식</span>' : '') + '</div>' : '') +
+      '</div>').join('');
+  }
+
+  /* 범위 탭 */
+  const rBox = $('#tab-range');
+  if (!state.ranges.length){
+    rBox.innerHTML = '<div class="empty">같은 열에서 수식 모양이 어긋난 곳을 찾지 못했습니다.</div>';
+  } else {
+    rBox.innerHTML = state.ranges.map(x =>
+      '<div class="item warn">' +
+        '<div class="ih">' +
+          '<span class="badge warn">범위 확인</span>' +
+          '<span class="sheetname">' + esc(x.sheet) + ' · ' + esc(x.col) + '열' +
+            (state.files.length > 1 ? ' · ' + esc(x.file) : '') + '</span>' +
+        '</div>' +
+        '<div class="diag">이 열은 <b>' + x.domCount + '개</b> 셀이 <code>' + esc(x.domF) + '</code> 모양인데, 아래 셀만 다릅니다.</div>' +
+        x.outliers.map(o =>
+          '<div style="margin-top:6px"><span class="cellref" data-ref="' + esc(o.ref) + '" data-sheet="' + esc(x.sheet) + '">' +
+          esc(o.ref) + '</span> <span style="color:var(--tx2);font-size:12px">' + esc(o.f) + '</span></div>').join('') +
+        '<div class="diag" style="color:var(--tx2);font-size:12px">→ 합계·소계처럼 원래 다른 행이면 정상입니다. 그렇지 않으면 범위가 하나씩 밀린 경우가 많습니다.</div>' +
+      '</div>').join('');
+  }
+
+  /* 시트 탭 */
+  $('#tab-info').innerHTML = state.sheets.map(s =>
+    '<div class="item info">' +
+      '<div class="ih"><span class="badge info">시트</span><span class="cellref" style="cursor:default">' + esc(s.name) + '</span>' +
+      (s.hidden ? '<span class="sheetname">숨김 시트</span>' : '') + '</div>' +
+      '<div class="diag" style="color:var(--tx2);font-size:12px">셀 ' + s.cells.toLocaleString() + '개 · 수식 ' + s.formulas + '개 · 오류 ' + s.errors + '개' +
+      (state.files.length > 1 ? ' · ' + esc(s.file) : '') + '</div>' +
+    '</div>').join('') || '<div class="empty">시트가 없습니다.</div>';
+
+  showTab(activeTab);
+}
+
+function showTab(name){
+  activeTab = name;
+  $$('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === name));
+  ['err','range','info'].forEach(k => { $('#tab-' + k).style.display = k === name ? '' : 'none'; });
+}
+
+/* CSV */
+function downloadCsv(){
+  const head = ['파일','시트','셀','오류','원인','해결','수식'];
+  const strip = (s) => String(s).replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+  const lines = [head];
+  for (const r of state.rows){
+    lines.push([r.file, r.sheet, r.ref, r.err, strip(r.cause), strip(r.fix), r.formula]);
+  }
+  for (const x of state.ranges){
+    for (const o of x.outliers){
+      lines.push([x.file, x.sheet, o.ref, '범위 확인', x.col + '열은 대부분 ' + x.domF + ' 인데 이 셀만 ' + o.f, '', o.f]);
+    }
+  }
+  const text = '\uFEFF' + lines.map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }));
+  a.download = '엑셀오류진단.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+
+/* 이벤트 */
+$('#btnPick').addEventListener('click', () => $('#fileInput').click());
+$('#fileInput').addEventListener('change', (ev) => {
+  const files = [...ev.target.files];
+  ev.target.value = '';
+  if (files.length) run(files);
+});
+$('#btnClear').addEventListener('click', () => {
+  state.files = []; state.rows = []; state.ranges = []; state.sheets = [];
+  $('#result').style.display = 'none';
+  $('#log').classList.remove('on'); $('#log').innerHTML = '';
+  $('#bar').classList.remove('on');
+});
+$('#btnCsv').addEventListener('click', downloadCsv);
+$$('.tab').forEach(t => t.addEventListener('click', () => showTab(t.dataset.tab)));
+
+async function run(files){
+  if (state.busy) return;
+  state.files = files;
+  await analyze(files);
+}
+
+const drop = $('#drop');
+['dragenter','dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave','dragend'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', (e) => {
+  e.preventDefault(); drop.classList.remove('over');
+  const files = [...e.dataTransfer.files].filter(f => /\.(xlsx|xlsm)$/i.test(f.name));
+  if (!files.length){ log('.xlsx 파일을 끌어다 놓아 주세요.', 'warn'); return; }
+  run(files);
+});
+
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('.cellref[data-ref]');
+  if (!el) return;
+  const s = el.dataset.sheet + '!' + el.dataset.ref;
+  navigator.clipboard?.writeText(s).then(
+    () => { const t = el.textContent; el.textContent = '복사됨'; setTimeout(() => el.textContent = t, 900); },
+    () => {}
+  );
+});
+</script>
+</body>
+</html>
