@@ -35,6 +35,10 @@ https://davpoqn.github.io/samu-tools/
 - 매크로는 실행하지 않습니다(수식만 읽습니다).
 - 병합 셀, 복잡한 배열 수식은 진단이 뭉뚱그려질 수 있습니다.
 
+## 폰트
+
+[Pretendard](https://github.com/orioncactus/pretendard) (SIL Open Font License 1.1) — jsDelivr CDN에서 불러옵니다. 오프라인이면 시스템 한글 폰트로 자동 대체됩니다.
+
 ## 개인정보
 
 모든 처리는 브라우저 안에서만 이루어집니다. 파일이 서버로 업로드되지 않습니다.
